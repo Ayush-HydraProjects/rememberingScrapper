@@ -12,6 +12,8 @@ from dateutil import parser
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+from urllib.parse import urlparse
+
 from models import Obituary, db
 
 # Load spaCy NLP Model for Named Entity Recognition (NER)
@@ -41,6 +43,144 @@ def configure_session():
     session.mount("https://", HTTPAdapter(max_retries=retries))
     session.headers.update({"User-Agent": random.choice(USER_AGENTS)})
     return session
+
+CITY_PROVINCE_MAPPING = {
+    "airdrieecho": ("Airdrie", "Alberta"),
+    "thecragandcanyon": ("Banff", "Alberta"),
+    "thebeaumontnews": ("Beaumont", "Alberta"),
+    "thecragandcanyon": ("Bow Valley", "Alberta"),
+    "calgary": ("Calgary", "Alberta"),
+    "calgaryherald": ("Calgary Herald", "Alberta"),
+    "calgarysun": ("Calgary Sun", "Alberta"),
+    "cochranetimes": ("Cochrane", "Alberta"),
+    "coldlakesun": ("Cold Lake", "Alberta"),
+    "devondispatch": ("Devon", "Alberta"),
+    "draytonvalleywesternreview": ("Drayton Valley", "Alberta"),
+    "edmonton": ("Edmonton", "Alberta"),
+    "edmontonjournal": ("Edmonton Journal", "Alberta"),
+    "edmontonsun": ("Edmonton Sun", "Alberta"),
+    "edson": ("Edson", "Alberta"),
+    "fairviewpost": ("Fairview", "Alberta"),
+    "fortmcmurraytoday": ("Fort McMurray", "Alberta"),
+    "fortsaskatchewanrecord": ("Fort Saskatchewan", "Alberta"),
+    "peacecountrysun": ("Grande Prairie", "Alberta"),
+    "hannaherald": ("Hanna", "Alberta"),
+    "highrivertimes": ("High River", "Alberta"),
+    "hinton": ("Hinton", "Alberta"),
+    "lacombe": ("Lacombe", "Alberta"),
+    "leducrep": ("Leduc", "Alberta"),
+    "mayerthorpefreelancer": ("Mayerthorpe", "Alberta"),
+    "nantonnews": ("Nanton", "Alberta"),
+    "prrecordgazette": ("Peace River", "Alberta"),
+    "pinchercreekecho": ("Pincher Creek", "Alberta"),
+    "sherwoodparknews": ("Sherwood Park", "Alberta"),
+    "sprucestony": ("Spruce Grove", "Alberta"),
+    "vermilionstandard": ("Vermilion", "Alberta"),
+    "vulcanadvocate": ("Vulcan", "Alberta"),
+    "wetaskiwintimes": ("Wetaskiwin", "Alberta"),
+    "whitecourtstar": ("Whitecourt", "Alberta"),
+    "princegeorgepost": ("Prince George", "British Columbia"),
+    "vancouversunandprovince": ("Vancouver", "British Columbia"),
+    "altona": ("Altona", "Manitoba"),
+    "beausejour": ("Beausejour", "Manitoba"),
+    "carman": ("Carman", "Manitoba"),
+    "gimli": ("Gimli (Interlake)", "Manitoba"),
+    "lacdubonnet": ("Lac du Bonnet", "Manitoba"),
+    "morden": ("Morden", "Manitoba"),
+    "thegraphicleader": ("Portage la Prairie", "Manitoba"),
+    "selkirk": ("Selkirk", "Manitoba"),
+    "stonewall": ("Stonewall", "Manitoba"),
+    "winkler": ("Winkler", "Manitoba"),
+    "winnipegsun": ("Winnipeg", "Manitoba"),
+    "northern-light": ("Bathurst", "New Brunswick"),
+    "tribune": ("Campbellton", "New Brunswick"),
+    "greater-saint-john": ("Edmundston Area", "New Brunswick"), # Corrected this line to use "Edmundston Area" as per HTML
+    "daily-gleaner": ("Fredericton", "New Brunswick"),
+    "victoria-star": ("Grand Falls", "New Brunswick"),
+    "miramichi-leader": ("Miramichi", "New Brunswick"),
+    "times-transcript": ("Moncton", "New Brunswick"),
+    "obituaries": ("Régions Acadiennes", "New Brunswick"), # Assuming 'obituaries' subdomain maps to "Régions Acadiennes" as per your earlier mapping for L'etoile
+    "kings-county-record": ("Sussex", "New Brunswick"),
+    "bugle-observer": ("Woodstock", "New Brunswick"),
+    "thetelegram": ("St. John's", "Newfoundland and Labrador"),
+    "theannapolisvalleyregister": ("Annapolis and Kings Counties", "Nova Scotia"),
+    "thecapebretonpost": ("Cape Breton", "Nova Scotia"),
+    "thetricountyvanguard": ("Digby, Shelburne and Yarmouth Counties", "Nova Scotia"),
+    "thechronicleherald": ("Halifax", "Nova Scotia"),
+    "thevalleyjournaladvertiser": ("Hants and Kings Counties", "Nova Scotia"),
+    "thenewglasgownews": ("New Glasgow", "Nova Scotia"),
+    "thetruronews": ("Truro", "Nova Scotia"),
+    "intelligencer": ("Belleville", "Ontario"),
+    "brantfordexpositor": ("Brantford", "Ontario"),
+    "recorder": ("Brockville", "Ontario"),
+    "chathamdailynews": ("Chatham", "Ontario"),
+    "clintonnewsrecord": ("Clinton", "Ontario"),
+    "cochranetimespost": ("Cochrane", "Ontario"),
+    "standard-freeholder": ("Cornwall", "Ontario"),
+    "norfolkandtillsonburgnews": ("Delhi", "Ontario"),
+    "elliotlakestandard": ("Elliot Lake", "Ontario"),
+    "midnorthmonitor": ("Espanola", "Ontario"),
+    "lakeshoreadvance": ("Exeter", "Ontario"),
+    "gananoquereporter": ("Gananoque", "Ontario"),
+    "goderichsignalstar": ("Goderich", "Ontario"),
+    "thepost": ("Hanover", "Ontario"),
+    "kenoraminerandnews": ("Kenora", "Ontario"),
+    "kincardinenews": ("Kincardine", "Ontario"),
+    "thewhig": ("Kingston", "Ontario"),
+    "northernnews": ("Kirkland Lake", "Ontario"),
+    "lfpress": ("London", "Ontario"),
+    "lucknowsentinel": ("Lucknow", "Ontario"),
+    "mitchelladvocate": ("Mitchell", "Ontario"),
+    "napaneeguide": ("Napanee", "Ontario"),
+    "nationalpost": ("National Post", "Ontario"),
+    "nugget": ("North Bay", "Ontario"),
+    "ottawa": ("Ottawa", "Ontario"),
+    "ottawacitizen": ("Ottawa Citizen", "Ontario"),
+    "ottawasun": ("Ottawa Sun", "Ontario"),
+    "owensoundsuntimes": ("Owen Sound", "Ontario"),
+    "parisstaronline": ("Paris", "Ontario"),
+    "pembrokeobserver": ("Pembroke", "Ontario"),
+    "countyweeklynews": ("Picton County", "Ontario"),
+    "shorelinebeacon": ("Port Elgin", "Ontario"),
+    "theobserver": ("Sarnia", "Ontario"),
+    "saultstar": ("Sault Ste. Marie", "Ontario"),
+    "seaforthhuronexpositor": ("Seaforth", "Ontario"),
+    "simcoereformer": ("Simcoe", "Ontario"),
+    "stthomastimesjournal": ("St. Thomas", "Ontario"),
+    "communitypress": ("Stirling", "Ontario"),
+    "stratfordbeaconherald": ("Stratford", "Ontario"),
+    "strathroyagedispatch": ("Strathroy", "Ontario"),
+    "thesudburystar": ("Sudbury", "Ontario"),
+    "timminspress": ("Timmins", "Ontario"),
+    "torontosun": ("Toronto", "Ontario"),
+    "trentonian": ("Trenton", "Ontario"),
+    "wallaceburgcourierpress": ("Wallaceburg", "Ontario"),
+    "thechronicle-online": ("West Lorne", "Ontario"),
+    "wiartonecho": ("Wiarton", "Ontario"),
+    "windsorstar": ("Windsor Star", "Ontario"),
+    "woodstocksentinelreview": ("Woodstock", "Ontario"),
+    "theguardian": ("Charlottetown", "Prince Edward Island"),
+    "thejournalpioneer": ("Summerside", "Prince Edward Island"),
+    "montrealgazette": ("Montreal", "Quebec"),
+    "melfortnipawinjournal": ("Melfort", "Saskatchewan"),
+    "leaderpost": ("Regina", "Saskatchewan"),
+    "thestarphoenix": ("Saskatoon", "Saskatchewan"),
+}
+
+def extract_city_and_province(url):
+    """
+    Extracts city and province from the subdomain of the given URL.
+    Example URL: 'windsor.remembering.ca'
+    """
+    # Parse the URL to get the subdomain
+    parsed_url = urlparse(url)
+    subdomain = parsed_url.hostname.split('.')[0]
+
+    # Look up city and province based on the subdomain
+    city, province = CITY_PROVINCE_MAPPING.get(subdomain.lower(), (None, None))
+
+    return city, province
+
 
 def get_city_subdomains(session):
     """Fetch all city subdomains"""
@@ -246,6 +386,9 @@ def process_obituary(session, db_session, url, visited_obituaries):
         # Extract birth and death dates
         birth_date, death_date = extract_dates(soup)
 
+        # Extract city and province from the subdomain of the URL
+        city, province = extract_city_and_province(url)
+
         # Check for alumni keywords in content
         is_alumni = any(keyword in content for keyword in ALUMNI_KEYWORDS)
 
@@ -259,6 +402,8 @@ def process_obituary(session, db_session, url, visited_obituaries):
             death_date=death_date,
             donation_information=donation_info,
             obituary_url=url,
+            city=city,  # Storing the city
+            province=province,  # Storing the province
             is_alumni=is_alumni,
             family_information=content,
         )
