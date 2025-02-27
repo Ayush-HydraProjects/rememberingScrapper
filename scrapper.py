@@ -120,8 +120,8 @@ def process_city(session, subdomain, processed_cities, visited_search_pages, vis
 
     logging.info(f"City {subdomain} completed. Alumni found: {total_alumni}")
 
-def process_obituary(session, url, visited_obituaries):
-    """Extract obituary details and check for alumni keywords, then store in database."""
+def process_obituary(session, db_session, url, visited_obituaries):
+    """Extract obituary details, check for alumni keywords, and store in database."""
     if url in visited_obituaries:
         return None
     visited_obituaries.add(url)
@@ -136,24 +136,19 @@ def process_obituary(session, url, visited_obituaries):
         content = soup.select_one("span.details-copy").get_text(strip=True) if soup.select_one("span.details-copy") else ""
 
         is_alumni = any(keyword in content for keyword in ALUMNI_KEYWORDS)
-
         first_name, last_name = name.split(" ", 1) if " " in name else (name, None)
-        # city = soup.select_one("span.choose-city").get_text(strip=True) if soup.select_one("span.choose-city") else None
-        # province = soup.select_one(".province-class").get_text(strip=True) if soup.select_one(".province-class") else None
 
-        with app.app_context():
-            obituary_entry = Obituary(
-                name=name,
-                first_name=first_name,
-                last_name=last_name,
-                obituary_url=url,
-                # city=city,
-                # province=province,
-                is_alumni=is_alumni,
-                content=content
-            )
-            db.session.add(obituary_entry)
-            db.session.commit()
+        # Prepare and store obituary entry
+        obituary_entry = Obituary(
+            name=name,
+            first_name=first_name,
+            last_name=last_name,
+            obituary_url=url,
+            is_alumni=is_alumni,
+            content=content
+        )
+        db_session.add(obituary_entry)
+        db_session.commit()
 
         logging.info(f"Obituary saved: {name} {'✅ (Alumni)' if is_alumni else '❌ (Not Alumni)'}")
         return {"name": name, "is_alumni": is_alumni, "url": url}
@@ -161,6 +156,7 @@ def process_obituary(session, url, visited_obituaries):
     except Exception as e:
         logging.error(f"Error processing obituary {url}: {e}")
         return None
+
 
 def main():
     session = configure_session()

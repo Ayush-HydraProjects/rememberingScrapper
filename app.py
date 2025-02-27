@@ -3,8 +3,6 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
-from scrapper import main
-
 # Initialize Flask app
 app = Flask(__name__)
 
@@ -18,7 +16,17 @@ migrate = Migrate(app, db)
 
 # Import models to register with SQLAlchemy
 from models import Obituary
+from scrapper import main # Import scraper's main function
 
-# Create database tables if they don't exist
-with app.app_context():
-    db.create_all()
+# --- Flask Routes ---
+@app.route('/scrape')
+def run_scraper_route(): # Renamed to avoid namespace conflict with scraper.py's main()
+    with app.app_context():
+        main() # Run scraper's main function within app context
+    return "Scraping completed. Check logs for details.", 200
+
+if __name__ == "__main__":
+    with app.app_context(): # Create app context for initial db operations
+        db.create_all() # Create database tables if they don't exist
+
+    app.run(debug=True)
