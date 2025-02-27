@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin
 
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+from urllib3 import Retry
 
 import app
 from models import Obituary,db
