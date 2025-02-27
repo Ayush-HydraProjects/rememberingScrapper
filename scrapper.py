@@ -4,12 +4,17 @@ import logging
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin
+import spacy
+import re
+from datetime import datetime
 
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
-from app import app
-from models import Obituary,db
+from models import Obituary, db
+
+# Load spaCy NLP Model for Named Entity Recognition (NER)
+nlp = spacy.load("en_core_web_sm")
 
 # Configure logging
 logging.basicConfig(
@@ -121,6 +126,93 @@ def process_city(session, subdomain, processed_cities, visited_search_pages, vis
 
     logging.info(f"City {subdomain} completed. Alumni found: {total_alumni}")
 
+def parse_date(date_string):
+    """Parse different date formats into a standard date string."""
+    try:
+        # Try to parse common formats like "July 4, 2014" or "Saturday, October 27, 2018"
+        return datetime.strptime(date_string, "%B %d, %Y").strftime("%Y-%m-%d")
+    except ValueError:
+        try:
+            return datetime.strptime(date_string, "%A, %B %d, %Y").strftime("%Y-%m-%d")
+        except ValueError:
+            return None
+
+def extract_dates(soup):
+    """
+    Extracts birth and death dates from the obituary details, takes soup as argument.
+    Handles HTML with spans and accounts for missing information
+    """
+    birth_date = None
+    death_date = None
+
+    obit_dates_tag = soup.find("h2", class_="obit-dates")
+    if obit_dates_tag:
+        # Get a list of date strings by parsing through all the code that isn't a span
+        date_strings = [s.strip() for s in obit_dates_tag.strings if s.strip()]  # Account for empty strings
+
+        if len(date_strings) >= 1:
+            if len(date_strings) == 1:  # Set the single one string
+                birth_date = parse_date(date_strings[0])
+            elif len(date_strings) >= 2:
+                birth_date = parse_date(date_strings[0])
+                death_date = parse_date(date_strings[-1])
+
+        # Basic data validation
+        if birth_date == "N/A":  # Account for dates that are N/A or are empty
+            birth_date = None
+        if death_date == "N/A":  # Account for dates that are N/A or are empty
+            death_date = None
+
+    return birth_date, death_date
+
+def extract_death_and_birth_dates(text):
+    """
+    Extracts death and birth dates from the given text using spaCy NLP and relative keywords.
+    Returns:
+        A tuple containing the extracted death date and birth date (or None if not found).
+    """
+    death_date = None
+    birth_date = None
+
+    doc = nlp(text)
+
+    # Find the first death indicator to cut down on processing
+    death_index = -1  # If no indicator, still run full search
+    for i, sent in enumerate(doc.sents):
+        death_keywords = ["passing", "passed away", "death", "died"]
+        if any(keyword in sent.text.lower() for keyword in death_keywords):
+            death_index = i
+            break
+
+    for i, sent in enumerate(doc.sents):  # Process each sentence separately
+        death_keywords = ["passing", "passed away", "death", "died"]
+        birth_keywords = ["born", "birth"]
+
+        # Check for death dates and limit to the first event with the code.
+        if any(keyword in sent.text.lower() for keyword in death_keywords) and i == death_index:
+            for ent in sent.ents:
+                if ent.label_ == "DATE":
+                    death_date = ent.text
+                    break  # Take the first date found in the sentence
+
+        # Check for birth dates at all sections.
+        if any(keyword in sent.text.lower() for keyword in birth_keywords):
+            for ent in sent.ents:
+                if ent.label_ == "DATE":
+                    birth_date = ent.text
+                    break  # Take the first date found in the sentence
+
+    # Parse dates found in the text
+    if birth_date:
+        birth_date = parse_date(birth_date)
+    if death_date:
+        death_date = parse_date(death_date)
+
+    return death_date, birth_date
+
+def extract_text(tag):
+    return tag.get_text(strip=True) if tag else "N/A"
+
 def process_obituary(session, db_session, url, visited_obituaries):
     """Extract obituary details, check for alumni keywords, and store in database."""
     if url in visited_obituaries:
@@ -133,32 +225,47 @@ def process_obituary(session, db_session, url, visited_obituaries):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
 
-        name = soup.select_one("h1.obit-name").get_text(strip=True) if soup.select_one("h1.obit-name") else "N/A"
+        # Extract first and last name using the provided sample method
+        obit_name_tag = soup.find("h1", class_="obit-name")
+        last_name_tag = soup.find("span", class_="obit-lastname-upper")  # Specific last name tag
+
+        first_name = extract_text(obit_name_tag).replace(extract_text(last_name_tag), "").strip() if obit_name_tag and last_name_tag else None
+        last_name = extract_text(last_name_tag).capitalize() if last_name_tag else None
+
+        if not first_name or not last_name:  # Handle missing name components
+            logging.error(f"Missing first or last name for obituary: {url}")
+            return None
+
         content = soup.select_one("span.details-copy").get_text(strip=True) if soup.select_one("span.details-copy") else ""
 
+        # Extract birth and death dates
+        birth_date, death_date = extract_dates(soup)
+
+        # Check for alumni keywords in content
         is_alumni = any(keyword in content for keyword in ALUMNI_KEYWORDS)
-        first_name, last_name = name.split(" ", 1) if " " in name else (name, None)
 
         # ✅ Wrap database operations inside Flask's app context
+        from app import app
         with app.app_context():
             obituary_entry = Obituary(
-                name=name,
+                name=f"{first_name} {last_name}",
                 first_name=first_name,
                 last_name=last_name,
                 obituary_url=url,
                 is_alumni=is_alumni,
-                content=content
+                content=content,
+                birth_date=birth_date,
+                death_date=death_date,
             )
             db.session.add(obituary_entry)
             db.session.commit()
 
-        logging.info(f"Obituary saved: {name} {'✅ (Alumni)' if is_alumni else '❌ (Not Alumni)'}")
-        return {"name": name, "is_alumni": is_alumni, "url": url}
+        logging.info(f"Obituary saved: {first_name} {last_name} {'✅ (Alumni)' if is_alumni else '❌ (Not Alumni)'}")
+        return {"name": f"{first_name} {last_name}", "is_alumni": is_alumni, "url": url}
 
     except Exception as e:
         logging.error(f"Error processing obituary {url}: {e}")
         return None
-
 
 def main():
     session = configure_session()
@@ -170,7 +277,6 @@ def main():
     if not subdomains:
         logging.error("No city subdomains found.")
         return
-
 
     for idx, subdomain in enumerate(subdomains, 1):
         logging.info(f"\nProcessing city {idx}/{len(subdomains)}: {subdomain}")
