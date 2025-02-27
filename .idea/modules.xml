@@ -2,8 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/FlaskProject.iml" filepath="$PROJECT_DIR$/.idea/FlaskProject.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../obituaryScrapping/.idea/obituaryScrapping.iml" filepath="$PROJECT_DIR$/../obituaryScrapping/.idea/obituaryScrapping.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/rememberingScraper.iml" filepath="$PROJECT_DIR$/.idea/rememberingScraper.iml" />
     </modules>
   </component>
 </project>
