@@ -8,7 +8,7 @@ from urllib.parse import urlparse, urljoin
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
-import app
+from app import app
 from models import Obituary,db
 
 # Configure logging
@@ -112,7 +112,8 @@ def process_city(session, subdomain, processed_cities, visited_search_pages, vis
             if url in visited_obituaries:
                 continue
 
-            result = process_obituary(session, url, visited_obituaries)
+            # ✅ Now correctly passing db.session
+            result = process_obituary(session, db.session, url, visited_obituaries)
             if result and result["is_alumni"]:
                 total_alumni += 1
 
@@ -138,17 +139,18 @@ def process_obituary(session, db_session, url, visited_obituaries):
         is_alumni = any(keyword in content for keyword in ALUMNI_KEYWORDS)
         first_name, last_name = name.split(" ", 1) if " " in name else (name, None)
 
-        # Prepare and store obituary entry
-        obituary_entry = Obituary(
-            name=name,
-            first_name=first_name,
-            last_name=last_name,
-            obituary_url=url,
-            is_alumni=is_alumni,
-            content=content
-        )
-        db_session.add(obituary_entry)
-        db_session.commit()
+        # ✅ Wrap database operations inside Flask's app context
+        with app.app_context():
+            obituary_entry = Obituary(
+                name=name,
+                first_name=first_name,
+                last_name=last_name,
+                obituary_url=url,
+                is_alumni=is_alumni,
+                content=content
+            )
+            db.session.add(obituary_entry)
+            db.session.commit()
 
         logging.info(f"Obituary saved: {name} {'✅ (Alumni)' if is_alumni else '❌ (Not Alumni)'}")
         return {"name": name, "is_alumni": is_alumni, "url": url}

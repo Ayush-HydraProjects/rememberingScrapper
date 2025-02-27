@@ -11,13 +11,14 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgres
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize database
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+# db = SQLAlchemy(app)
 
+from models import Obituary, db
 # Import models to register with SQLAlchemy
-from models import Obituary
 from scrapper import main # Import scraper's main function
 
+db.init_app(app)
+migrate = Migrate(app, db)
 # --- Flask Routes ---
 @app.route('/scrape')
 def run_scraper_route(): # Renamed to avoid namespace conflict with scraper.py's main()
