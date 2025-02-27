@@ -173,6 +173,7 @@ def main():
         logging.error("No city subdomains found.")
         return
 
+
     for idx, subdomain in enumerate(subdomains, 1):
         logging.info(f"\nProcessing city {idx}/{len(subdomains)}: {subdomain}")
         process_city(session, subdomain, processed_cities, visited_search_pages, visited_obituaries)
