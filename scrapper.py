@@ -7,6 +7,7 @@ from urllib.parse import urlparse, urljoin
 import spacy
 import re
 from datetime import datetime
+from dateutil import parser
 
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
@@ -126,21 +127,10 @@ def process_city(session, subdomain, processed_cities, visited_search_pages, vis
 
     logging.info(f"City {subdomain} completed. Alumni found: {total_alumni}")
 
-def parse_date(date_string):
-    """Parse different date formats into a standard date string."""
-    try:
-        # Try to parse common formats like "July 4, 2014" or "Saturday, October 27, 2018"
-        return datetime.strptime(date_string, "%B %d, %Y").strftime("%Y-%m-%d")
-    except ValueError:
-        try:
-            return datetime.strptime(date_string, "%A, %B %d, %Y").strftime("%Y-%m-%d")
-        except ValueError:
-            return None
-
 def extract_dates(soup):
     """
     Extracts birth and death dates from the obituary details, takes soup as argument.
-    Handles HTML with spans and accounts for missing information
+    Handles HTML with spans and accounts for missing information and no-year cases.
     """
     birth_date = None
     death_date = None
@@ -150,20 +140,30 @@ def extract_dates(soup):
         # Get a list of date strings by parsing through all the code that isn't a span
         date_strings = [s.strip() for s in obit_dates_tag.strings if s.strip()]  # Account for empty strings
 
-        if len(date_strings) >= 1:
-            if len(date_strings) == 1:  # Set the single one string
-                birth_date = parse_date(date_strings[0])
-            elif len(date_strings) >= 2:
-                birth_date = parse_date(date_strings[0])
-                death_date = parse_date(date_strings[-1])
+        if len(date_strings) == 1:
+            # If only one date is found, treat it as the death date by default
+            death_date = date_strings[0]  # Keep the date exactly as it is without appending a year
+        elif len(date_strings) >= 2:
+            # If two or more dates are found, assign the first as birth date and last as death date
+            birth_date = date_strings[0]
+            death_date = date_strings[-1]
 
-        # Basic data validation
-        if birth_date == "N/A":  # Account for dates that are N/A or are empty
+        # Basic data validation to handle invalid dates (empty strings or 'N/A')
+        if birth_date == "N/A" or not birth_date:
             birth_date = None
-        if death_date == "N/A":  # Account for dates that are N/A or are empty
+        if death_date == "N/A" or not death_date:
             death_date = None
 
     return birth_date, death_date
+
+def parse_date(date_str):
+    """Try parsing the date using dateutil.parser and return in the 'Month dd, yyyy' format."""
+    try:
+        parsed_date = parser.parse(date_str, fuzzy=True).date()
+        # Format the date to 'Month dd, yyyy'
+        return parsed_date.strftime("%B %d, %Y")
+    except (ValueError, TypeError):
+        return None
 
 def extract_death_and_birth_dates(text):
     """
@@ -179,14 +179,14 @@ def extract_death_and_birth_dates(text):
     # Find the first death indicator to cut down on processing
     death_index = -1  # If no indicator, still run full search
     for i, sent in enumerate(doc.sents):
-        death_keywords = ["passing", "passed away", "death", "died"]
+        death_keywords = ["passing", "passed away", "death", "died", "rested", "passed", "at the age of"]
         if any(keyword in sent.text.lower() for keyword in death_keywords):
             death_index = i
             break
 
     for i, sent in enumerate(doc.sents):  # Process each sentence separately
-        death_keywords = ["passing", "passed away", "death", "died"]
-        birth_keywords = ["born", "birth"]
+        death_keywords = ["passing", "passed away", "death", "died", "rested", "passed", "at the age of"]
+        birth_keywords = ["born", "birth", "born in"]
 
         # Check for death dates and limit to the first event with the code.
         if any(keyword in sent.text.lower() for keyword in death_keywords) and i == death_index:
@@ -202,7 +202,7 @@ def extract_death_and_birth_dates(text):
                     birth_date = ent.text
                     break  # Take the first date found in the sentence
 
-    # Parse dates found in the text
+    # Parse dates found in the text and format them
     if birth_date:
         birth_date = parse_date(birth_date)
     if death_date:
@@ -238,6 +238,11 @@ def process_obituary(session, db_session, url, visited_obituaries):
 
         content = soup.select_one("span.details-copy").get_text(strip=True) if soup.select_one("span.details-copy") else ""
 
+        donation_keywords = ["donation", "charity", "memorial fund", "contributions"]
+        donation_mentions = [sentence for sentence in content.split(". ") if
+                             any(keyword in sentence.lower() for keyword in donation_keywords)]
+        donation_info = "; ".join(donation_mentions)
+
         # Extract birth and death dates
         birth_date, death_date = extract_dates(soup)
 
@@ -246,17 +251,18 @@ def process_obituary(session, db_session, url, visited_obituaries):
 
         # ✅ Wrap database operations inside Flask's app context
         from app import app
+        obituary_entry = Obituary(
+            name=f"{first_name} {last_name}",
+            first_name=first_name,
+            last_name=last_name,
+            birth_date=birth_date,
+            death_date=death_date,
+            donation_information=donation_info,
+            obituary_url=url,
+            is_alumni=is_alumni,
+            family_information=content,
+        )
         with app.app_context():
-            obituary_entry = Obituary(
-                name=f"{first_name} {last_name}",
-                first_name=first_name,
-                last_name=last_name,
-                obituary_url=url,
-                is_alumni=is_alumni,
-                content=content,
-                birth_date=birth_date,
-                death_date=death_date,
-            )
             db.session.add(obituary_entry)
             db.session.commit()
 

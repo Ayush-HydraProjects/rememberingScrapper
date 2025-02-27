@@ -10,13 +10,12 @@ class Obituary(db.Model):
     obituary_url = db.Column(db.String(500), unique=True, nullable=False)
     city = db.Column(db.String(100))
     province = db.Column(db.String(100))
-    birth_date = db.Column(db.Date)
-    death_date = db.Column(db.Date)
+    birth_date = db.Column(db.String(100))
+    death_date = db.Column(db.String(100))
     family_information = db.Column(db.Text)
     donation_information = db.Column(db.Text)
     funeral_home = db.Column(db.String(255))
     is_alumni = db.Column(db.Boolean, default=False)
-    content = db.Column(db.Text)
-
+    
     def __repr__(self):
         return f"<Obituary {self.name} - {self.city}, {self.province}>"
