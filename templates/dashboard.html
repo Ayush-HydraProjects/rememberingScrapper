@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obituary Scraper Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+          integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+</head>
+<body class="bg-gray-100 flex">
+<!-- Sidebar -->
+<aside class="w-64 bg-gray-900 text-white h-screen fixed flex flex-col">
+    <div class="p-5 text-xl font-bold flex items-center space-x-2">
+        <span>📖 Obituary Scraper</span>
+    </div>
+    <nav class="mt-5">
+        <a href="/" class="block py-3 px-5 hover:bg-gray-700 transition">🏠 Dashboard</a>
+        <a href="/settings" class="block py-3 px-5 hover:bg-gray-700 transition">⚙️ Settings</a>
+        <a href="/about" class="block py-3 px-5 hover:bg-gray-700 transition">ℹ️ About</a>
+    </nav>
+</aside>
+
+<!-- Main Content -->
+<div class="ml-64 flex-1 p-6">
+    <!-- Top Bar -->
+    <header class="bg-white shadow-md p-4 mb-6 rounded-lg text-xl font-semibold text-gray-800">
+        Dashboard
+    </header>
+
+    <!-- Content Area -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Scraper Controls -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-lg font-semibold mb-3">⚙️ Scraper Controls</h2>
+            <p class="text-gray-600">Start or stop the obituary scraping process.</p>
+            <div class="mt-4 flex space-x-3">
+                <button class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
+                        onclick="startScraping()" id="startButton">▶ Start
+                </button>
+                <button class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                        onclick="stopScraping()" disabled id="stopButton">⏹ Stop
+                </button>
+            </div>
+            <p class="mt-2 text-gray-500" id="scrapingStatus">Not running</p>
+            <p class="mt-2 font-semibold">Total Alumni Obituaries: <span id="alumniCount">{{ total_alumni }}</span></p>
+            <p class="mt-2 font-semibold">Total Obituaries Processed: <span id="entriesFetched">{{ total_obituaries }}</span></p>
+             <p class="mt-2 font-semibold">Total Cities Processed: <span id="citiesFetched">{{ total_cities }}</span></p>
+        </div>
+
+        <!-- Search Panel -->
+        <div class="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-lg font-semibold mb-3">🔎 Search & Filter</h2>
+            <form id="searchForm" action="/search_obituaries" method="GET" class="flex flex-wrap -mx-2">
+                <div class="px-2 w-full md:w-1/3 mb-2">
+                    <label for="firstNameSearch" class="block text-gray-700 text-sm mb-1">First Name:</label>
+                    <input type="text" class="form-input" id="firstNameSearch" name="firstName" placeholder="First Name" value="{{ request.args.firstName }}">
+                </div>
+                <div class="px-2 w-full md:w-1/3 mb-2">
+                    <label for="lastNameSearch" class="block text-gray-700 text-sm mb-1">Last Name:</label>
+                    <input type="text" class="form-input" id="lastNameSearch" name="lastName" placeholder="Last Name" value="{{ request.args.lastName }}">
+                </div>
+                 <div class="px-2 w-full md:w-1/3 mb-2">
+                    <label for="citySearch" class="block text-gray-700 text-sm mb-1">City:</label>
+                    <input type="text" class="form-input" id="citySearch" name="city" placeholder="Enter City" value="{{ request.args.city }}">
+                </div>
+
+                <div class="px-2 w-full md:w-1/3 mb-2">
+                    <label for="provinceSearch" class="block text-gray-700 text-sm mb-1">Province:</label>
+                    <select id="provinceSearch" class="form-select" name="province">
+                        <option value="">Any Province</option>
+                        <option value="Alberta">Alberta</option>
+                        <option value="British Columbia">British Columbia</option>
+                        <option value="Manitoba">Manitoba</option>
+                        <option value="New Brunswick">New Brunswick</option>
+                        <option value="Newfoundland and Labrador">Newfoundland and Labrador</option>
+                        <option value="Nova Scotia">Nova Scotia</option>
+                        <option value="Ontario">Ontario</option>
+                        <option value="Prince Edward Island">Prince Edward Island</option>
+                        <option value="Quebec">Quebec</option>
+                        <option value="Saskatchewan">Saskatchewan</option>
+                        <!-- Add other provinces here -->
+                    </select>
+                </div>
+
+
+                <div class="px-2 w-full md:w-1/3 mb-2">
+                     <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 mt-4">
+                    🔎 Search
+                </button>
+                 <button type="button" onclick="clearSearch()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg mt-4 ml-2">
+                    Clear
+                </button>
+                </div>
+            </form>
+        </div>
+
+
+    </div>
+
+    <!-- Obituaries Section -->
+    <div class="bg-white p-6 rounded-lg shadow-md mt-6">
+        <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-semibold">📜 Recent Alumni Obituaries</h2>
+            <button class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600" onclick="refreshObituaries()">
+                🔄 Refresh
+            </button>
+        </div>
+        <div id="obituaryList">
+            <div class="overflow-x-auto">
+                <table class="min-w-full border border-gray-300">
+                    <thead class="bg-gray-200">
+                    <tr>
+                        <th class="border px-4 py-2 text-left">First Name</th>
+                        <th class="border px-4 py-2 text-left">Last Name</th>
+                        <th class="border px-4 py-2 text-left">City</th>
+                        <th class="border px-4 py-2 text-left">Province</th>
+                        <th class="border px-4 py-2 text-left">Birth Date</th>
+                        <th class="border px-4 py-2 text-left">Death Date</th>
+                        <th class="border px-4 py-2 text-left">Obituary URL</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+            <div id="loading-spinner" class="text-center hidden">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <p>Loading Obituaries...</p>
+            </div>
+            <p class="text-center py-4 text-gray-500 hidden" id="noNewEntries">No new entries found in the database.</p>
+
+
+        </div>
+    </div>
+</div>
+<style>
+        .form-input, .form-select {
+            @apply shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md;
+        }
+        .form-select {
+            padding-right: 2.5rem; /* Adjust to accommodate dropdown arrow */
+        }
+    </style>
+
+
+<script>
+        let scrapingActive = false;
+        const entriesFetchedSpan = document.getElementById("entriesFetched");
+
+
+        function updateEntriesFetchedDisplay(value) {
+            entriesFetchedSpan.textContent = value;
+        }
+
+
+        function startScraping() {
+            if (scrapingActive) {
+                alert("Scraping is already running.");
+                return;
+            }
+
+
+            fetch('/scrape', {
+                method: 'POST', // <---- Make sure method is POST
+                headers: { // <---- Set headers for POST request (optional but good practice)
+                    'Content-Type': 'application/json',
+                },
+                // No body needed for this POST request, but if you were sending data, you'd add it here:
+                // body: JSON.stringify({ key: 'value' })
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    alert(data);
+                    scrapingActive = false;
+                    document.getElementById("stopButton").disabled = true;
+                    document.getElementById("startButton").disabled = false;
+                    document.getElementById("scrapingStatus").textContent = "Scraping finished.";
+                    refreshObituaries(); // Refresh obituaries after scraping completes
+                    updateDashboardSummary(); // Update summary counts as well
+                })
+                .catch(error => {
+                    console.error("Error during scraping:", error);
+                    alert("An error occurred during scraping. Check the console for details.");
+                    scrapingActive = false;
+                    document.getElementById("stopButton").disabled = true;
+                    document.getElementById("startButton").disabled = false;
+                    document.getElementById("scrapingStatus").textContent = "Scraping encountered an error.";
+                });
+        }
+
+        function stopScraping() {
+            if (!scrapingActive) {
+                alert("Scraping is not currently running.");
+                return;
+            }
+
+            scrapingActive = false;
+            document.getElementById("stopButton").disabled = true;
+            document.getElementById("startButton").disabled = false;
+            document.getElementById("scrapingStatus").textContent = "Stopping Scraping... (This is a mock function)";
+        }
+        function clearSearch() {
+            document.getElementById("firstNameSearch").value = '';
+            document.getElementById("lastNameSearch").value = '';
+            document.getElementById("citySearch").value = '';
+            document.getElementById("provinceSearch").value = '';
+            refreshObituaries(); // Refresh to show all obituaries
+        }
+
+
+        // document.addEventListener('DOMContentLoaded', function() {
+        //     refreshObituaries(); // Load obituaries on dashboard load
+        //     updateDashboardSummary(); // Initial summary update on load
+        // });
+
+
+//     document.getElementById("searchForm").addEventListener("submit", function (event) {
+//     event.preventDefault(); // Prevent default form submission
+//
+//     // Retrieve search input values
+//     const firstName = document.getElementById("firstNameSearch").value.trim();
+//     const lastName = document.getElementById("lastNameSearch").value.trim();
+//     const city = document.getElementById("citySearch").value.trim();
+//     const province = document.getElementById("provinceSearch").value.trim();
+//     // const query = document.getElementById("query").value.trim(); // General search field
+//
+//     // Show loading spinner
+//     document.getElementById("loading-spinner").classList.remove("hidden");
+//     document.getElementById("obituaryList").classList.add("hidden");
+//
+//     // Build query parameters dynamically
+//     const params = new URLSearchParams();
+//     if (firstName) params.append("firstName", firstName);
+//     if (lastName) params.append("lastName", lastName);
+//     if (city) params.append("city", city);
+//     if (province) params.append("province", province);
+//     // if (query) params.append("query", query); // Include general query
+//
+//     fetch(`/search_obituaries?${params.toString()}`)
+//         .then(response => response.json())
+//         .then(data => {
+//             // Hide loading spinner
+//             document.getElementById("loading-spinner").classList.add("hidden");
+//             document.getElementById("obituaryList").classList.remove("hidden");
+//
+//             const obituaryList = document.querySelector("#obituaryList tbody");
+//             obituaryList.innerHTML = ""; // Clear existing entries
+//
+//             if (data.length === 0) {
+//                 document.getElementById("noNewEntries").classList.remove("hidden"); // Show no entries message
+//             } else {
+//                 document.getElementById("noNewEntries").classList.add("hidden"); // Hide no entries message
+//                 data.forEach(obituary => {
+//                     const row = `
+//                         <tr class="hover:bg-gray-100 transition">
+//                             <td class="border px-4 py-2">${obituary.first_name || "N/A"}</td>
+//                             <td class="border px-4 py-2">${obituary.last_name || "N/A"}</td>
+//                             <td class="border px-4 py-2">${obituary.city || "N/A"}</td>
+//                             <td class="border px-4 py-2">${obituary.province || "N/A"}</td>
+//                             <td class="border px-4 py-2">${obituary.birth_date || "N/A"}</td>
+//                             <td class="border px-4 py-2">${obituary.death_date || "N/A"}</td>
+//                             <td class="border px-4 py-2">
+//                                 <a href="${obituary.obituary_url}" target="_blank" class="text-blue-500 hover:underline">🔗 View</a>
+//                             </td>
+//                         </tr>
+//                     `;
+//                     obituaryList.innerHTML += row;
+//                 });
+//             }
+//         })
+//         .catch(error => {
+//             console.error("Search error:", error);
+//             alert("Error fetching search results.");
+//             // Hide loading spinner on error
+//             document.getElementById("loading-spinner").classList.add("hidden");
+//             document.getElementById("obituaryList").classList.remove("hidden");
+//         });
+// });
+
+
+
+        function refreshObituaries() {
+             document.getElementById('loading-spinner').classList.remove('hidden');
+            document.getElementById('obituaryList').classList.add('hidden');
+            document.getElementById('noNewEntries').classList.add('hidden');
+
+
+            fetch('/get_obituaries')
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Obituary data received:", data)
+                     // Hide loading spinner
+                    document.getElementById('loading-spinner').classList.add('hidden');
+                    document.getElementById('obituaryList').classList.remove('hidden');
+                    const obituaryList = document.querySelector("#obituaryList tbody");
+                    obituaryList.innerHTML = "";
+
+
+                     if (data.length === 0) {
+                        document.getElementById('noNewEntries').classList.remove('hidden');// Show no entries message
+                    }
+                     else {
+                         document.getElementById('noNewEntries').classList.add('hidden');//// Hide no entries message
+                        data.forEach(obituary => {
+                            const row = `
+                                <tr class="hover:bg-gray-100 transition">
+                                    <td class="border px-4 py-2">${obituary.first_name || 'N/A'}</td>
+                                    <td class="border px-4 py-2">${obituary.last_name || 'N/A'}</td>
+                                    <td class="border px-4 py-2">${obituary.city || 'N/A'}</td>
+                                    <td class="border px-4 py-2">${obituary.province || 'N/A'}</td>
+                                    <td class="border px-4 py-2">${obituary.birth_date || 'N/A'}</td>
+                                    <td class="border px-4 py-2">${obituary.death_date || 'N/A'}</td>
+                                    <td class="border px-4 py-2">
+                                        <a href="${obituary.obituary_url}" target="_blank" class="text-blue-500 hover:underline">🔗 View</a>
+                                    </td>
+                                </tr>
+                            `;
+                            obituaryList.innerHTML += row;
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error("Error refreshing obituaries:", error)
+                     document.getElementById('loading-spinner').classList.add('hidden');
+                    document.getElementById('obituaryList').classList.remove('hidden');
+                });
+        }
+
+        // function updateDashboardSummary() {
+        //     fetch('/dashboard_summary')
+        //     .then(response => response.json())
+        //     .then(data => {
+        //         document.getElementById('alumniCount').textContent = data.total_alumni;
+        //         document.getElementById('entriesFetched').textContent = data.total_obituaries;
+        //         document.getElementById('citiesFetched').textContent = data.total_cities;
+        //      })
+        //     .catch(error => console.error("Error fetching dashboard summary:", error));
+        // }
+    </script>
+
+</body>
+</html>

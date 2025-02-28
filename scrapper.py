@@ -16,8 +16,27 @@ from urllib.parse import urlparse
 
 from models import Obituary, db
 
+
 # Load spaCy NLP Model for Named Entity Recognition (NER)
 nlp = spacy.load("en_core_web_sm")
+
+import json
+import os
+
+STATE_FILE = "state.json"
+
+def load_state():
+    """Load the saved state from a file"""
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, 'r') as file:
+            return json.load(file)
+    return {}
+
+def save_state(state):
+    """Save the current state to a file"""
+    with open(STATE_FILE, 'w') as file:
+        json.dump(state, file, indent=4)
+
 
 # Configure logging
 logging.basicConfig(
@@ -39,7 +58,7 @@ USER_AGENTS = [
 def configure_session():
     """Configure HTTP session with retries and user-agent rotation"""
     session = requests.Session()
-    retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
+    retries = Retry(total=100, backoff_factor=1, status_forcelist=[502, 503, 504])
     session.mount("https://", HTTPAdapter(max_retries=retries))
     session.headers.update({"User-Agent": random.choice(USER_AGENTS)})
     return session
@@ -253,10 +272,20 @@ def process_city(session, subdomain, processed_cities, visited_search_pages, vis
     logging.info(f"\nProcessing city: {subdomain.upper()}\n" + "=" * 50)
 
     total_alumni = 0
+
+
     for page_urls in process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries):
+
+        save_state({
+            'processed_cities': list(processed_cities),
+            'visited_search_pages': list(visited_search_pages),
+            'visited_obituaries': list(visited_obituaries)
+        })
+
         for url in page_urls:
             if url in visited_obituaries:
                 continue
+
 
             # ✅ Now correctly passing db.session
             result = process_obituary(session, db.session, url, visited_obituaries)
@@ -392,24 +421,25 @@ def process_obituary(session, db_session, url, visited_obituaries):
         # Check for alumni keywords in content
         is_alumni = any(keyword in content for keyword in ALUMNI_KEYWORDS)
 
-        # ✅ Wrap database operations inside Flask's app context
-        from app import app
-        obituary_entry = Obituary(
-            name=f"{first_name} {last_name}",
-            first_name=first_name,
-            last_name=last_name,
-            birth_date=birth_date,
-            death_date=death_date,
-            donation_information=donation_info,
-            obituary_url=url,
-            city=city,  # Storing the city
-            province=province,  # Storing the province
-            is_alumni=is_alumni,
-            family_information=content,
-        )
-        with app.app_context():
-            db.session.add(obituary_entry)
-            db.session.commit()
+        if is_alumni:
+    # ✅ Wrap database operations inside Flask's app context
+            from app import app
+            obituary_entry = Obituary(
+                name=f"{first_name} {last_name}",
+                first_name=first_name,
+                last_name=last_name,
+                birth_date=birth_date,
+                death_date=death_date,
+                donation_information=donation_info,
+                obituary_url=url,
+                city=city,  # Storing the city
+                province=province,  # Storing the province
+                is_alumni=is_alumni,
+                family_information=content,
+            )
+            with app.app_context():
+                db.session.add(obituary_entry)
+                db.session.commit()
 
         logging.info(f"Obituary saved: {first_name} {last_name} {'✅ (Alumni)' if is_alumni else '❌ (Not Alumni)'}")
         return {"name": f"{first_name} {last_name}", "is_alumni": is_alumni, "url": url}
@@ -419,10 +449,15 @@ def process_obituary(session, db_session, url, visited_obituaries):
         return None
 
 def main():
+
+    state = load_state()
+
     session = configure_session()
-    processed_cities = set()
-    visited_search_pages = set()
-    visited_obituaries = set()
+
+    # Initialize variables based on the saved state
+    processed_cities = set(state.get('processed_cities', []))
+    visited_search_pages = set(state.get('visited_search_pages', []))
+    visited_obituaries = set(state.get('visited_obituaries', []))
 
     subdomains = get_city_subdomains(session)
     if not subdomains:
