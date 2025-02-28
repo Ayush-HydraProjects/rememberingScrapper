@@ -1,18 +1,8 @@
 {
     "processed_cities": [
-        "beausejour",
-        "altona",
-        "brantfordexpositor",
-        "airdrieecho"
     ],
     "visited_search_pages": [
-        "https://altona.remembering.ca/obituaries/all-categories/search?search_type=advanced&ap_search_keyword=Windsor",
-        "https://airdrieecho.remembering.ca/obituaries/all-categories/search?search_type=advanced&ap_search_keyword=Windsor",
-        "https://beausejour.remembering.ca/obituaries/all-categories/search?search_type=advanced&ap_search_keyword=Windsor",
-        "https://brantfordexpositor.remembering.ca/obituaries/all-categories/search?search_type=advanced&ap_search_keyword=Windsor"
     ],
     "visited_obituaries": [
-        "https://airdrieecho.remembering.ca/obituary/victor-kalinka-1084368804",
-        "https://altona.remembering.ca/obituary/judy-brillinger-1072318663"
     ]
 }
