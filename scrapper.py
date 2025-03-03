@@ -276,6 +276,7 @@ def process_city(session, subdomain, processed_cities, visited_search_pages, vis
 
     for page_urls in process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries):
 
+
         save_state({
             'processed_cities': list(processed_cities),
             'visited_search_pages': list(visited_search_pages),
