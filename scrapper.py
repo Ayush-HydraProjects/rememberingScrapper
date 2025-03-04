@@ -23,19 +23,19 @@ nlp = spacy.load("en_core_web_sm")
 import json
 import os
 
-STATE_FILE = "state.json"
+# STATE_FILE = "state.json"  <- Removed STATE_FILE constant
 
-def load_state():
-    """Load the saved state from a file"""
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, 'r') as file:
-            return json.load(file)
-    return {}
+# def load_state():  <- Removed load_state function
+#     """Load the saved state from a file"""
+#     if os.path.exists(STATE_FILE):
+#         with open(STATE_FILE, 'r') as file:
+#             return json.load(file)
+#     return {}
 
-def save_state(state):
-    """Save the current state to a file"""
-    with open(STATE_FILE, 'w') as file:
-        json.dump(state, file, indent=4)
+# def save_state(state):  <- Removed save_state function
+#     """Save the current state to a file"""
+#     with open(STATE_FILE, 'w') as file:
+#         json.dump(state, file, indent=4)
 
 
 # Configure logging
@@ -221,7 +221,7 @@ def get_city_subdomains(session):
         logging.error(f"Error fetching city subdomains: {e}")
         return []
 
-def process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries):
+def process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries): # <- Removed state params
     """Fetch obituary pages for a city"""
     base_url = f"https://{subdomain}.{BASE_DOMAIN}"
     search_url = f"{base_url}/obituaries/all-categories/search?search_type=advanced&ap_search_keyword={SEARCH_KEYWORD}"
@@ -263,24 +263,26 @@ def process_search_pagination(session, subdomain, visited_search_pages, visited_
             logging.error(f"Error on page {page}: {str(e)[:100]}...")
             break
 
-def process_city(session, subdomain, processed_cities, visited_search_pages, visited_obituaries):
+def process_city(session, subdomain): # <- Removed state params
     """Process all obituary pages in a city"""
-    if subdomain in processed_cities:
-        return
-    processed_cities.add(subdomain)
+    # if subdomain in processed_cities: <- Removed processed_cities check
+    #     return  <- Removed processed_cities check
+    # processed_cities.add(subdomain) <- Removed processed_cities state update
 
     logging.info(f"\nProcessing city: {subdomain.upper()}\n" + "=" * 50)
 
     total_alumni = 0
+    visited_search_pages = set() # Initialize here, not loaded from state
+    visited_obituaries = set() # Initialize here, not loaded from state
 
 
-    for page_urls in process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries):
+    for page_urls in process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries): # <- Removed state params
 
-        save_state({
-            'processed_cities': list(processed_cities),
-            'visited_search_pages': list(visited_search_pages),
-            'visited_obituaries': list(visited_obituaries)
-        })
+        # save_state({ <- Removed save_state call
+        #     'processed_cities': list(processed_cities),
+        #     'visited_search_pages': list(visited_search_pages),
+        #     'visited_obituaries': list(visited_obituaries)
+        # })
 
         for url in page_urls:
             if url in visited_obituaries:
@@ -326,7 +328,7 @@ def extract_dates(soup):
     return birth_date, death_date
 
 def parse_date(date_str):
-    """Try parsing the date using dateutil.parser and return in the 'Month dd, yyyy' format."""
+    """Try parsing date using dateutil.parser and return 'Month dd, yyyy' format."""
     try:
         parsed_date = parser.parse(date_str, fuzzy=True).date()
         # Format the date to 'Month dd, yyyy'
@@ -383,7 +385,7 @@ def extract_text(tag):
     return tag.get_text(strip=True) if tag else "N/A"
 
 def process_obituary(session, db_session, url, visited_obituaries):
-    """Extract obituary details, check for alumni keywords, and store in both Obituary and DistinctObituary tables."""
+    """Extract obituary details, check for alumni keywords, and store in both tables."""
     if url in visited_obituaries:
         return None
     visited_obituaries.add(url)
@@ -394,15 +396,15 @@ def process_obituary(session, db_session, url, visited_obituaries):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Extract first and last name using the provided sample method
+        # Extract name components
         obit_name_tag = soup.find("h1", class_="obit-name")
-        last_name_tag = soup.find("span", class_="obit-lastname-upper")  # Specific last name tag
+        last_name_tag = soup.find("span", class_="obit-lastname-upper")
 
         first_name = extract_text(obit_name_tag).replace(extract_text(last_name_tag), "").strip() if obit_name_tag and last_name_tag else None
         last_name = extract_text(last_name_tag).capitalize() if last_name_tag else None
 
-        if not first_name or not last_name:  # Handle missing name components
-            logging.error(f"Missing first or last name for obituary: {url}")
+        if not first_name or not last_name:
+            logging.error(f"Missing name for obituary: {url}")
             return None
 
         content = soup.select_one("span.details-copy").get_text(strip=True) if soup.select_one("span.details-copy") else ""
@@ -412,19 +414,17 @@ def process_obituary(session, db_session, url, visited_obituaries):
                              any(keyword in sentence.lower() for keyword in donation_keywords)]
         donation_info = "; ".join(donation_mentions)
 
-        # Extract birth and death dates
+        # Extract dates and location
         birth_date, death_date = extract_dates(soup)
-
-        # Extract city and province from the subdomain of the URL
         city, province = extract_city_and_province(url)
 
-        # Check for alumni keywords in content
+        # Check for alumni status
         is_alumni = any(keyword in content for keyword in ALUMNI_KEYWORDS)
 
         if is_alumni:
             from app import app
             with app.app_context():
-                # Create Obituary object and save to Obituary table
+                # Save to Obituary table
                 obituary_entry = Obituary(
                     name=f"{first_name} {last_name}",
                     first_name=first_name,
@@ -439,13 +439,11 @@ def process_obituary(session, db_session, url, visited_obituaries):
                     family_information=content,
                 )
                 db.session.add(obituary_entry)
-                db.session.flush() # Flush to get the obituary_entry.id if needed (though not used here)
+                db.session.flush()
 
-                # Check if DistinctObituary entry with the same name exists
+                # Save to DistinctObituary if not already present
                 distinct_entry_exists = DistinctObituary.query.filter_by(name=f"{first_name} {last_name}").first()
-
                 if not distinct_entry_exists:
-                    # Create DistinctObituary object and save to DistinctObituary table
                     distinct_obituary_entry = DistinctObituary(
                         name=f"{first_name} {last_name}",
                         first_name=first_name,
@@ -461,8 +459,7 @@ def process_obituary(session, db_session, url, visited_obituaries):
                     )
                     db.session.add(distinct_obituary_entry)
 
-                db.session.commit() # Commit session to save to both tables (or just Obituary if distinct exists)
-
+                db.session.commit()
 
         logging.info(f"Obituary saved: {first_name} {last_name} {'✅ (Alumni)' if is_alumni else '❌ (Not Alumni)'}")
         return {"name": f"{first_name} {last_name}", "is_alumni": is_alumni, "url": url}
@@ -473,14 +470,14 @@ def process_obituary(session, db_session, url, visited_obituaries):
 
 def main():
 
-    state = load_state()
+    # state = load_state() <- Removed state loading
 
     session = configure_session()
 
-    # Initialize variables based on the saved state
-    processed_cities = set(state.get('processed_cities', []))
-    visited_search_pages = set(state.get('visited_search_pages', []))
-    visited_obituaries = set(state.get('visited_obituaries', []))
+    # Initialize variables based on the saved state <- Removed state based initialization
+    processed_cities = set() # Initialize as empty set
+    visited_search_pages = set() # Initialize as empty set
+    visited_obituaries = set() # Initialize as empty set
 
     subdomains = get_city_subdomains(session)
     if not subdomains:
@@ -489,7 +486,7 @@ def main():
 
     for idx, subdomain in enumerate(subdomains, 1):
         logging.info(f"\nProcessing city {idx}/{len(subdomains)}: {subdomain}")
-        process_city(session, subdomain, processed_cities, visited_search_pages, visited_obituaries)
+        process_city(session, subdomain) # <- Removed state params from function call
 
     logging.info("\nScraping completed!")
 

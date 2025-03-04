@@ -22,5 +22,58 @@
     background: #555;
 }
 */
+#obituaryList {
+    max-height: 70vh;
+    overflow-y: auto;
+    display: block; /* Add this line */
+}
 
+    .form-input, .form-select {
+        /* Keep the @apply styles or translate them to normal CSS if needed */
+        @apply shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md px-3 py-2;
+    }
+
+
+    /* Primary Button Style - Normal CSS (no @apply) */
+    .primary-button {
+        background-color: #60a5fa; /* Tailwind blue-500 */
+        color: white;
+        font-weight: 600; /* Tailwind font-semibold */
+        padding: 0.5rem 1rem; /* Tailwind py-2 px-4 (0.5rem = 8px, 1rem = 16px) */
+        border-radius: 0.5rem; /* Tailwind rounded-lg (0.5rem = 8px) */
+        outline: none; /* Tailwind focus:outline-none */
+        box-shadow: 0 0 transparent; /* Tailwind focus:shadow-outline - simplified for example */
+        transition: background-color 0.15s ease-in-out; /* Smooth transition for hover */
+        cursor: pointer; /* Indicate it's clickable */
+    }
+
+    .primary-button:hover {
+        background-color: #3b82f6; /* Tailwind blue-600 */
+    }
+
+    .primary-button:focus {
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.5); /* Approximate focus shadow */
+    }
+
+
+    /* Secondary Button Style - Normal CSS (no @apply) */
+    .secondary-button {
+        background-color: #d4d4d4; /* Tailwind gray-300 */
+        color: #374151; /* Tailwind gray-800 */
+        font-weight: 600; /* Tailwind font-semibold */
+        padding: 0.5rem 1rem; /* Tailwind py-2 px-4 */
+        border-radius: 0.5rem; /* Tailwind rounded-lg */
+        outline: none; /* Tailwind focus:outline-none */
+        box-shadow: 0 0 transparent; /* Tailwind focus:shadow-outline - simplified */
+        transition: background-color 0.15s ease-in-out; /* Smooth transition for hover */
+        cursor: pointer; /* Indicate it's clickable */
+    }
+
+    .secondary-button:hover {
+        background-color: #a8a8a8; /* Tailwind gray-400 */
+    }
+
+    .secondary-button:focus {
+        box-shadow: 0 0 0 3px rgba(209, 213, 219, 0.5); /* Approximate focus shadow */
+    }
 /* Add more custom styles as needed */

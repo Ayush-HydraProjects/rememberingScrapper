@@ -32,27 +32,36 @@
 </header>
 
 <div class="container mx-auto px-6 mt-6 flex">
-
-    <!-- Sidebar - Advanced Filters -->
-    <aside class="w-72 mr-6 p-4 bg-white rounded-lg shadow-md h-fit sticky top-6">
-        <h3 class="font-semibold text-lg mb-4">Filter Obituaries</h3>
-        <form id="filterForm" class="space-y-4" action="javascript:void(0);">
+    <aside class="w-72 mr-6 p-6 bg-white rounded-lg shadow-md h-fit sticky top-6">
+        <h3 class="font-semibold text-xl mb-5 text-gray-800"><i class="fas fa-filter mr-2 text-blue-500"></i> Filter Obituaries</h3>
+        <form id="filterForm" class="space-y-6"> <!-- Increased vertical spacing -->
             <div>
-                <label for="firstNameFilter" class="block text-gray-700 text-sm mb-1">First Name:</label>
-                <input type="text" class="form-input" id="firstNameFilter" name="firstName" placeholder="First Name" value="{{ request.args.firstName }}">
+                <label for="firstNameFilter" class="block text-gray-700 text-sm font-medium mb-2">
+                    <i class="fas fa-user mr-1 text-gray-500"></i> First Name:
+                </label>
+                <input type="text" class="form-input" id="firstNameFilter" name="firstName" placeholder="Enter first name"
+                       value="{{ request.args.firstName }}">
             </div>
             <div>
-                <label for="lastNameFilter" class="block text-gray-700 text-sm mb-1">Last Name:</label>
-                <input type="text" class="form-input" id="lastNameFilter" name="lastName" placeholder="Last Name" value="{{ request.args.lastName }}">
+                <label for="lastNameFilter" class="block text-gray-700 text-sm font-medium mb-2">
+                    <i class="fas fa-user mr-1 text-gray-500"></i> Last Name:
+                </label>
+                <input type="text" class="form-input" id="lastNameFilter" name="lastName" placeholder="Enter last name"
+                       value="{{ request.args.lastName }}">
             </div>
             <div>
-                <label for="cityFilter" class="block text-gray-700 text-sm mb-1">City:</label>
-                <input type="text" class="form-input" id="cityFilter" name="city" placeholder="Enter City" value="{{ request.args.city }}">
+                <label for="cityFilter" class="block text-gray-700 text-sm font-medium mb-2">
+                    <i class="fas fa-city mr-1 text-gray-500"></i> City:
+                </label>
+                <input type="text" class="form-input" id="cityFilter" name="city" placeholder="Enter city name"
+                       value="{{ request.args.city }}">
             </div>
             <div>
-                <label for="provinceFilter" class="block text-gray-700 text-sm mb-1">Province:</label>
-                <select id="provinceFilter" class="form-select" name="province">
-                    <option value="">Any Province</option>
+                <label for="provinceFilter" class="block text-gray-700 text-sm font-medium mb-2">
+                    <i class="fas fa-map-marker-alt mr-1 text-gray-500"></i> Province:
+                </label>
+                <select id="provinceFilter" class="form-select bg-gray-50" name="province"> <!-- Added light background -->
+                    <option value="">Select Province</option> <!-- Updated placeholder -->
                     <option value="Alberta">Alberta</option>
                     <option value="British Columbia">British Columbia</option>
                     <option value="Manitoba">Manitoba</option>
@@ -65,27 +74,13 @@
                     <option value="Saskatchewan">Saskatchewan</option>
                 </select>
             </div>
-<!--            <div>-->
-<!--                <label for="birthDateFilter" class="block text-gray-700 text-sm mb-1">Birth Year Range:</label>-->
-<!--                <div class="flex space-x-2">-->
-<!--                    <input type="number" class="form-input w-1/2" id="birthDateStart" name="birthDateStart" placeholder="Start Year">-->
-<!--                    <input type="number" class="form-input w-1/2" id="birthDateEnd" name="birthDateEnd" placeholder="End Year">-->
-<!--                </div>-->
-<!--            </div>-->
-<!--            <div>-->
-<!--                <label for="deathDateFilter" class="block text-gray-700 text-sm mb-1">Death Year Range:</label>-->
-<!--                <div class="flex space-x-2">-->
-<!--                    <input type="number" class="form-input w-1/2" id="deathDateStart" name="deathDateStart" placeholder="Start Year">-->
-<!--                    <input type="number" class="form-input w-1/2" id="deathDateEnd" name="deathDateEnd" placeholder="End Year">-->
-<!--                </div>-->
-<!--            </div>-->
 
-            <div class="flex space-x-2 mt-5">
-                <button type="submit" onclick="applyFilters()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+            <div class="flex justify-center space-x-3 mt-8"> <!-- Increased top margin for buttons -->
+                <button type="submit" class="primary-button"> <!-- Using primary-button class -->
                     🔎 Apply
                 </button>
-                <button type="button" onclick="clearFilters()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg">
-                    🔎 Clear
+                <button type="button" onclick="clearFilters()" class="secondary-button"> <!-- Using secondary-button class -->
+                    🔄 Clear
                 </button>
             </div>
         </form>
@@ -144,10 +139,9 @@
                     🔄 Refresh
                 </button>
             </div>
-            <div id="obituaryList">
-                <div class="overflow-x-auto">
+            <div id="obituaryList" style="max-height: 70vh; overflow-y: auto;">
                     <table class="min-w-full border border-gray-300">
-                        <thead class="bg-gray-200">
+                        <thead class="bg-gray-200 sticky top-0">
                         <tr>
                             <th class="border px-4 py-2 text-left">First Name</th>
                             <th class="border px-4 py-2 text-left">Last Name</th>
@@ -158,7 +152,7 @@
                             <th class="border px-4 py-2 text-left">Obituary URL</th>
                         </tr>
                         </thead>
-                        <tbody class="overflow-y-auto">
+                        <tbody>
                         </tbody>
                     </table>
                 </div>
@@ -168,18 +162,8 @@
                 </div>
                 <p class="text-center py-4 text-gray-500 hidden" id="noNewEntries">No new entries found based on filters.</p>
             </div>
-        </div>
     </main>
 </div>
-
-<style>
-    .form-input, .form-select {
-        @apply shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md;
-    }
-    .form-select {
-        padding-right: 2.5rem; /* Adjust to accommodate dropdown arrow */
-    }
-</style>
 
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 
