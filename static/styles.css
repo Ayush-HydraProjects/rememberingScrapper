@@ -1,0 +1,26 @@
+/* styles.css */
+
+/* You can add any custom styles here that are not covered by Tailwind CSS */
+/* For example, if you need to override any Tailwind defaults or add unique styling */
+
+/* Example: Custom scrollbar styling (if needed) */
+/*
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+*/
+
+/* Add more custom styles as needed */
