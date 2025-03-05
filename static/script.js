@@ -1,8 +1,5 @@
  /* script.js */
 
- // let scrapingActive = {{ (scraping_active)|tojson }};
- // console.log(scrapingActive);
-
 const entriesFetchedSpan = document.getElementById("entriesFetched");
 
 
@@ -31,7 +28,7 @@ function startScraping() {
         })
         .then(data => {
             alert(data.message);
-            scrapingActive = data.scraping_active;  // ✅ Use server's response
+            scrapingActive = data.scraping_active;  // Use server's response
             updateScraperUI();
         })
         .catch(error => {
@@ -60,7 +57,7 @@ function stopScraping() {
         })
         .then(data => {
             alert(data.message);
-            scrapingActive = data.scraping_active;  // ✅ Use server's response
+            scrapingActive = data.scraping_active;  // Use server's response
             updateScraperUI();
         })
         .catch(error => {
