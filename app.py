@@ -99,6 +99,7 @@ def get_obituaries():
     with app.app_context():
         obituaries = DistinctObituary.query.all() # Limit to 15 entries
         obituary_list = [{  # Prepare distinct obituary data as dictionaries
+            'id': obit.id,
             'name': obit.name,
             'first_name': obit.first_name,
             'last_name': obit.last_name,
@@ -177,6 +178,12 @@ def run_scraper_background(stop_event):
 #             'total_cities': total_cities,
 #         })
 
+@app.route('/obituary/<int:pk>')
+def obituary_detail(pk):
+    """Route to display details for a specific obituary."""
+    with app.app_context():
+        obituary = DistinctObituary.query.get_or_404(pk) # Fetch from DistinctObituary, or Obituary if you prefer
+        return render_template('obituary_detail.html', obituary=obituary)
 
 if __name__ == "__main__":
     with app.app_context():

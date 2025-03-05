@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ obituary.name }} - Obituary Details</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="bg-gray-100">
+
+<div class="container mx-auto p-6">
+    <header class="bg-white shadow-md p-4 mb-6 rounded-lg text-xl font-semibold text-gray-800">
+        Obituary Details
+    </header>
+
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold mb-4">{{ obituary.name }}</h2>
+
+        <div class="mb-4">
+            <p class="font-semibold">First Name:</p>
+            <p>{{ obituary.first_name }}</p>
+        </div>
+        <div class="mb-4">
+            <p class="font-semibold">Last Name:</p>
+            <p>{{ obituary.last_name }}</p>
+        </div>
+
+        <div class="mb-4">
+            <p class="font-semibold">City:</p>
+            <p>{{ obituary.city or 'N/A' }}</p>
+        </div>
+        <div class="mb-4">
+            <p class="font-semibold">Province:</p>
+            <p>{{ obituary.province or 'N/A' }}</p>
+        </div>
+        <div class="mb-4">
+            <p class="font-semibold">Birth Date:</p>
+            <p>{{ obituary.birth_date or 'N/A' }}</p>
+        </div>
+        <div class="mb-4">
+            <p class="font-semibold">Death Date:</p>
+            <p>{{ obituary.death_date or 'N/A' }}</p>
+        </div>
+        <div class="mb-4">
+            <p class="font-semibold">Funeral Home:</p>
+            <p>{{ obituary.funeral_home or 'N/A' }}</p>
+        </div>
+        <div class="mb-4">
+            <p class="font-semibold">Family Information:</p>
+            <p>{{ obituary.family_information or 'N/A' }}</p>
+        </div>
+        <div class="mb-4">
+            <p class="font-semibold">Donation Information:</p>
+            <p>{{ obituary.donation_information or 'N/A' }}</p>
+        </div>
+        <div class="mb-4">
+            <p class="font-semibold">Obituary URL:</p>
+            <p>
+                <a href="{{ obituary.obituary_url }}" target="_blank" class="text-blue-500 hover:underline">
+                    🔗 View Obituary
+                </a>
+            </p>
+        </div>
+         <div class="mb-4">
+            <p class="font-semibold">Tags:</p>
+            <p>{{ obituary.tags or 'None' }}</p>  <!-- Display tags -->
+        </div>
+
+        <div class="mt-6">
+            <a href="/" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

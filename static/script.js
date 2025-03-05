@@ -167,7 +167,7 @@ function applyFilters() {
                             <td class="border px-4 py-2">${obituary.birth_date || "N/A"}</td>
                             <td class="border px-4 py-2">${obituary.death_date || "N/A"}</td>
                             <td class="border px-4 py-2">
-                                <a href="${obituary.obituary_url}" target="_blank" class="text-blue-500 hover:underline">🔗 View</a>
+                                <a href="/obituary/${obituary.id}" class="text-blue-500 hover:underline">🔗 View</a>
                             </td>
                         </tr>
                     `;
@@ -208,6 +208,7 @@ function refreshObituaries() {
             }
             else {
                 document.getElementById('noNewEntries').classList.add('hidden');//// Hide no entries message
+                console.log(data)
                 data.forEach(obituary => {
                     const row = `
                         <tr class="hover:bg-gray-100 transition">
@@ -218,7 +219,7 @@ function refreshObituaries() {
                             <td class="border px-4 py-2">${obituary.birth_date || 'N/A'}</td>
                             <td class="border px-4 py-2">${obituary.death_date || 'N/A'}</td>
                             <td class="border px-4 py-2">
-                                <a href="${obituary.obituary_url}" target="_blank" class="text-blue-500 hover:underline">🔗 View</a>
+                                <a href="/obituary/${obituary.id}" class="text-blue-500 hover:underline">🔗 View</a>
                             </td>
                         </tr>
                     `;

@@ -437,6 +437,12 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                              any(keyword in sentence.lower() for keyword in donation_keywords)]
         donation_info = "; ".join(donation_mentions)
 
+        funeral_home_tag = soup.find("span", class_="obit-fh")  # Example selector - adjust as needed
+        funeral_home = extract_text(funeral_home_tag) if funeral_home_tag else None
+
+        # Tags - Initialize as None for now, will be managed in UI
+        tags = None # Or tags = "" if you prefer empty string
+
         # Extract dates and location
         birth_date, death_date = extract_dates(soup)
         city, province = extract_city_and_province(url)
@@ -460,6 +466,8 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                     province=province,
                     is_alumni=is_alumni,
                     family_information=content,
+                    funeral_home=funeral_home,  # Save funeral home
+                    tags=tags,  # Save tags (initially None)
                 )
                 db.session.add(obituary_entry)
                 db.session.flush()
@@ -479,6 +487,8 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                         province=province,
                         is_alumni=is_alumni,
                         family_information=content,
+                        funeral_home=funeral_home,  # Save funeral home
+                        tags=tags,  # Save tags (initially None)
                     )
                     db.session.add(distinct_obituary_entry)
 
