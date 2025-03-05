@@ -1,6 +1,8 @@
  /* script.js */
 
-let scrapingActive = false;
+ // let scrapingActive = {{ (scraping_active)|tojson }};
+ // console.log(scrapingActive);
+
 const entriesFetchedSpan = document.getElementById("entriesFetched");
 
 
@@ -10,13 +12,12 @@ function updateEntriesFetchedDisplay(value) {
 
 
 function startScraping() {
-    if (scrapingActive) {
+    if (scrapingActive) { // Now checking direct scrapingActive value
         alert("Scraping is already running.");
         return;
     }
 
-
-    fetch('/scrape', {
+    fetch('/start_scrape', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -26,58 +27,92 @@ function startScraping() {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
-            return response.text();
+            return response.json();
         })
         .then(data => {
-            alert(data);
-            scrapingActive = false;
-            document.getElementById("stopButton").disabled = true;
-            document.getElementById("startButton").disabled = false;
-            document.getElementById("scrapingStatus").textContent = "Scraping finished.";
-            refreshObituaries();
-            updateDashboardSummary();
+            alert(data.message);
+            scrapingActive = data.scraping_active;  // ✅ Use server's response
+            updateScraperUI();
         })
         .catch(error => {
-            console.error("Error during scraping:", error);
-            alert("An error occurred during scraping. Check the console for details.");
-            scrapingActive = false;
-            document.getElementById("stopButton").disabled = true;
-            document.getElementById("startButton").disabled = false;
-            document.getElementById("scrapingStatus").textContent = "Scraping encountered an error.";
+            console.error("Error starting scraping:", error);
+            alert("Error starting scraping. Check console for details.");
         });
 }
 
 function stopScraping() {
-    if (!scrapingActive) {
+    if (!scrapingActive) { // Now checking direct scrapingActive value
         alert("Scraping is not currently running.");
         return;
     }
 
-    scrapingActive = false;
-    document.getElementById("stopButton").disabled = true;
-    document.getElementById("startButton").disabled = false;
-    document.getElementById("scrapingStatus").textContent = "Stopping Scraping... (This is a mock function)";
+    fetch('/stop_scrape', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert(data.message);
+            scrapingActive = data.scraping_active;  // ✅ Use server's response
+            updateScraperUI();
+        })
+        .catch(error => {
+            console.error("Error stopping scraping:", error);
+            alert("Error stopping scraping. Check console for details.");
+        });
 }
+
+function updateScrapingStatusDisplay() {
+    fetch('/scrape_status')
+        .then(response => response.json())
+        .then(data => {
+            scrapingActive = data.scraping_active; // Update scrapingActive from server status
+            updateScraperUI(); // Call updateUI function
+        })
+        .catch(error => {
+            console.error("Error fetching scraping status:", error);
+        });
+}
+
+function updateScraperUI() { // NEW FUNCTION to update UI elements based on scrapingActive
+    if (scrapingActive) {
+        document.getElementById("startButton").disabled = true;
+        document.getElementById("stopButton").disabled = false;
+        console.log('if part:', scrapingActive);
+        document.getElementById("scrapingStatus").textContent = "Scraping running...";
+    } else {
+        document.getElementById("startButton").disabled = false;
+        document.getElementById("stopButton").disabled = true;
+        console.log('else part: ', scrapingActive);
+        document.getElementById("scrapingStatus").textContent = "Not running";
+    }
+}
+
 
 function clearFilters() {
     document.getElementById("firstNameFilter").value = '';
     document.getElementById("lastNameFilter").value = '';
     document.getElementById("cityFilter").value = '';
     document.getElementById("provinceFilter").value = '';
-    // document.getElementById("birthDateStart").value = '';
-    // document.getElementById("birthDateEnd").value = '';
-    // document.getElementById("deathDateStart").value = '';
-    // document.getElementById("deathDateEnd").value = '';
-    refreshObituaries(); // Refresh to show all obituaries
+    refreshObituaries();
 }
 
 
-document.addEventListener('DOMContentLoaded', function() {
-    refreshObituaries(); // Load obituaries on dashboard load
-    updateDashboardSummary(); // Initial summary update on load
+document.addEventListener('DOMContentLoaded', function () {
+    refreshObituaries();
+    // updateDashboardSummary(); // If you still use this
+    updateScrapingStatusDisplay(); // Initial status update on load
+    setInterval(updateScrapingStatusDisplay, 5000);
 
     document.getElementById("filterForm").addEventListener("submit", function (event) {
-        event.preventDefault(); // Prevent default form submission
+        event.preventDefault();
         applyFilters();
     });
 });
@@ -201,13 +236,13 @@ function refreshObituaries() {
         });
 }
 
-function updateDashboardSummary() {
-    fetch('/dashboard_summary')
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('alumniCount').textContent = data.total_alumni;
-            document.getElementById('entriesFetched').textContent = data.total_obituaries;
-            document.getElementById('citiesFetched').textContent = data.total_cities;
-        })
-        .catch(error => console.error("Error fetching dashboard summary:", error));
-}
+// function updateDashboardSummary() {
+//     fetch('/dashboard_summary')
+//         .then(response => response.json())
+//         .then(data => {
+//             document.getElementById('alumniCount').textContent = data.total_alumni;
+//             document.getElementById('entriesFetched').textContent = data.total_obituaries;
+//             document.getElementById('citiesFetched').textContent = data.total_cities;
+//         })
+//         .catch(error => console.error("Error fetching dashboard summary:", error));
+// }

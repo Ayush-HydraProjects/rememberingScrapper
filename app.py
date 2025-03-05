@@ -5,7 +5,10 @@ from flask_migrate import Migrate
 
 import logging
 from flask_sqlalchemy import SQLAlchemy
-from models import Obituary, DistinctObituary, db # Import DistinctObituary
+from models import Obituary, DistinctObituary, db
+
+import threading  # Import threading
+import time  # For simple delay in stop function
 
 # Initialize Flask app (rest remains same as before)
 app = Flask(__name__)
@@ -18,22 +21,26 @@ db.init_app(app)
 # Import models to register with SQLAlchemy
 from scrapper import main
 
+# --- Global variables to track scraper state ---
+scrape_thread = None  # To hold the scraping thread
+stop_event = threading.Event()  # Use threading.Event instead of boolean flag # <---- CHANGED
 
 # --- Flask Routes ---
 @app.route('/')
 def dashboard():
-    """Route to display the scraper dashboard with latest distinct obituaries.""" # Updated docstring
+    """Route to display the scraper dashboard."""
     with app.app_context():
-        total_alumni = DistinctObituary.query.filter_by(is_alumni=True).count() # Use DistinctObituary
-        total_obituaries = DistinctObituary.query.count() # Use DistinctObituary
-        total_cities = len(set(obit.city for obit in DistinctObituary.query.all() if obit.city)) # Use DistinctObituary
-        latest_obituaries = DistinctObituary.query.filter_by(is_alumni=True).order_by(DistinctObituary.id.desc()).limit(10).all() # Use DistinctObituary
-
+        total_alumni = DistinctObituary.query.filter_by(is_alumni=True).count()
+        total_obituaries = DistinctObituary.query.count()
+        total_cities = len(set(obit.city for obit in DistinctObituary.query.all() if obit.city))
+        latest_obituaries = DistinctObituary.query.limit(15).all()
+        scraping_active = not stop_event.is_set()
         return render_template('dashboard.html',
                                total_alumni=total_alumni,
                                total_obituaries=total_obituaries,
                                total_cities=total_cities,
-                               obituaries=latest_obituaries) # Pass distinct obituaries to template
+                               obituaries=latest_obituaries,
+                               scraping_active= scraping_active) # Pass scraping_active to template
 
 @app.route('/search_obituaries')
 def search_obituaries():
@@ -106,12 +113,54 @@ def get_obituaries():
         return jsonify(obituary_list)  # Return JSON response
 
 
-@app.route('/scrape', methods=['POST'])  # Expect POST for scrape trigger
-def run_scraper_route():
-    """Route to trigger the scraper (still targets Obituary table as before)."""
-    with app.app_context():
-        main() # Assuming main() still populates the Obituary table
-    return jsonify({'message': 'Scraping completed successfully!'})  # Return JSON response with message
+@app.route('/start_scrape', methods=['POST'])
+def start_scrape():
+    """Route to start the scraper in a background thread."""
+    global scrape_thread, stop_event
+
+    if not stop_event.is_set(): # Check event status instead of boolean flag # <---- CHANGED
+        return jsonify({'message': 'Scraping is already running!'}), 400
+
+    stop_event.clear()  # Clear the stop event to start scraping # <---- CHANGED
+    scrape_thread = threading.Thread(target=run_scraper_background, args=(stop_event,)) # Pass stop_event as argument # <---- CHANGED
+    scrape_thread.start()
+    return jsonify({
+        'message': 'Scraping started in the background.',
+        'scraping_active': True  # Add this line
+    })
+
+
+@app.route('/stop_scrape', methods=['POST'])
+def stop_scrape():
+    """Route to stop the scraper (set event to stop gracefully)."""
+    global stop_event
+
+    if stop_event.is_set(): # Check event status instead of boolean flag # <---- CHANGED
+        return jsonify({'message': 'Scraping is not currently running!'}), 400
+
+    stop_event.set()  # Set the stop event to signal scraper to stop # <---- CHANGED
+    time.sleep(2)  # Keep delay for testing, can remove later
+    return jsonify({
+        'message': 'Stopping scraping...',
+        'scraping_active': False  # Add this line
+    })
+
+
+@app.route('/scrape_status')
+def scrape_status():
+    """Route to get the current scraping status."""
+    return jsonify({'scraping_active': not stop_event.is_set()})
+
+
+def run_scraper_background(stop_event):
+    """Function to run the scraper in the background thread."""
+    logging.info("Scraper background thread started.")
+    try:
+        main(stop_event)  # Pass stop_event to main() # <---- CHANGED
+    except Exception as e:
+        logging.error(f"Scraper background thread encountered an error: {e}")
+    finally:
+        logging.info("Scraper background thread finished.")
 
 
 
@@ -133,4 +182,5 @@ if __name__ == "__main__":
     with app.app_context():
         db.drop_all() # Be careful with drop_all in production!
         db.create_all()
+        stop_event.set()
     app.run(debug=True)

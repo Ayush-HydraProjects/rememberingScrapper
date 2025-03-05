@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 
 from models import Obituary, DistinctObituary, db # Import DistinctObituary model
 
+# from app import scraping_active
 
 # Load spaCy NLP Model for Named Entity Recognition (NER)
 nlp = spacy.load("en_core_web_sm")
@@ -221,8 +222,9 @@ def get_city_subdomains(session):
         logging.error(f"Error fetching city subdomains: {e}")
         return []
 
-def process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries): # <- Removed state params
+def process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event): # <- Removed state params
     """Fetch obituary pages for a city"""
+    time.sleep(0.5)
     base_url = f"https://{subdomain}.{BASE_DOMAIN}"
     search_url = f"{base_url}/obituaries/all-categories/search?search_type=advanced&ap_search_keyword={SEARCH_KEYWORD}"
 
@@ -230,6 +232,11 @@ def process_search_pagination(session, subdomain, visited_search_pages, visited_
     max_pages = 50
 
     while page <= max_pages:
+
+        if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
+            logging.info("Scraping stopped by user request (pagination level).")
+            return  # Exit page loop if event is set
+
         current_url = f"{search_url}&p={page}" if page > 1 else search_url
 
         if current_url in visited_search_pages:
@@ -263,7 +270,7 @@ def process_search_pagination(session, subdomain, visited_search_pages, visited_
             logging.error(f"Error on page {page}: {str(e)[:100]}...")
             break
 
-def process_city(session, subdomain): # <- Removed state params
+def process_city(session, subdomain, stop_event): # <- Removed state params
     """Process all obituary pages in a city"""
     # if subdomain in processed_cities: <- Removed processed_cities check
     #     return  <- Removed processed_cities check
@@ -276,8 +283,11 @@ def process_city(session, subdomain): # <- Removed state params
     visited_obituaries = set() # Initialize here, not loaded from state
 
 
-    for page_urls in process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries): # <- Removed state params
+    for page_urls in process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event): # <- Removed state params
 
+        if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
+            logging.info("Scraping stopped by user request (city level - start of city processing).")
+            break
         # save_state({ <- Removed save_state call
         #     'processed_cities': list(processed_cities),
         #     'visited_search_pages': list(visited_search_pages),
@@ -285,16 +295,24 @@ def process_city(session, subdomain): # <- Removed state params
         # })
 
         for url in page_urls:
+            if stop_event.is_set():  # Check stop_event before processing each URL  <- CHANGED
+                logging.info("Scraping stopped by user request (city level - before processing url).")
+                break
+
             if url in visited_obituaries:
                 continue
 
 
             # ✅ Now correctly passing db.session
-            result = process_obituary(session, db.session, url, visited_obituaries)
+            result = process_obituary(session, db.session, url, visited_obituaries, stop_event)
             if result and result["is_alumni"]:
                 total_alumni += 1
 
             time.sleep(random.uniform(0.7, 1.3))
+
+            if stop_event.is_set():  # Check stop_event after processing all URLs  <- CHANGED
+                logging.info("Scraping stopped by user request (city level - after processing urls).")
+                break
 
     logging.info(f"City {subdomain} completed. Alumni found: {total_alumni}")
 
@@ -384,7 +402,12 @@ def extract_death_and_birth_dates(text):
 def extract_text(tag):
     return tag.get_text(strip=True) if tag else "N/A"
 
-def process_obituary(session, db_session, url, visited_obituaries):
+def process_obituary(session, db_session, url, visited_obituaries, stop_event):
+    time.sleep(0.2)
+    if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
+        logging.info("Scraping stopped by user request (obituary level - before processing).")
+        return None
+
     """Extract obituary details, check for alumni keywords, and store in both tables."""
     if url in visited_obituaries:
         return None
@@ -468,13 +491,12 @@ def process_obituary(session, db_session, url, visited_obituaries):
         logging.error(f"Error processing obituary {url}: {e}")
         return None
 
-def main():
-
+def main(stop_event):
+    time.sleep(15)
     # state = load_state() <- Removed state loading
 
     session = configure_session()
 
-    # Initialize variables based on the saved state <- Removed state based initialization
     processed_cities = set() # Initialize as empty set
     visited_search_pages = set() # Initialize as empty set
     visited_obituaries = set() # Initialize as empty set
@@ -485,10 +507,14 @@ def main():
         return
 
     for idx, subdomain in enumerate(subdomains, 1):
-        logging.info(f"\nProcessing city {idx}/{len(subdomains)}: {subdomain}")
-        process_city(session, subdomain) # <- Removed state params from function call
+        if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
+            logging.info("Scraping stopped by user request (city level).")
+            break  # Exit city loop if event is set
 
-    logging.info("\nScraping completed!")
+        logging.info(f"\nProcessing city {idx}/{len(subdomains)}: {subdomain}")
+        process_city(session, subdomain, stop_event)
+
+    logging.info("\nScraping completed or stopped.")
 
 if __name__ == "__main__":
-    main()
+    pass
