@@ -6,6 +6,9 @@
     <title>{{ obituary.name }} - Obituary Details</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+          integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"/>
 </head>
 <body class="bg-gray-100">
 
@@ -14,61 +17,88 @@
         Obituary Details
     </header>
 
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-2xl font-semibold mb-4">{{ obituary.name }}</h2>
+    <div class="bg-white p-6 rounded-lg shadow-md space-y-4"> <!-- Reduced vertical spacing -->
 
-        <div class="mb-4">
-            <p class="font-semibold">First Name:</p>
-            <p>{{ obituary.first_name }}</p>
-        </div>
-        <div class="mb-4">
-            <p class="font-semibold">Last Name:</p>
-            <p>{{ obituary.last_name }}</p>
-        </div>
+        <h2 class="text-2xl font-semibold mb-4 text-center">{{ obituary.name }}</h2> <!-- Centered name -->
 
+        <!-- Row of First Four Sections -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"> <!-- Grid container for first 4 sections -->
+
+            <!-- Name Section -->
+            <section class="p-4 border rounded-lg shadow-sm">
+                <h3 class="font-semibold text-lg text-gray-700 mb-2"><i class="fas fa-user mr-2"></i> Name</h3>
+                <p class="text-gray-800">
+                    <span class="font-semibold">First:</span> {{ obituary.first_name or 'N/A' }}<br>
+                    <span class="font-semibold">Last:</span> {{ obituary.last_name or 'N/A' }}
+                </p>
+            </section>
+
+            <!-- Location Section -->
+            <section class="p-4 border rounded-lg shadow-sm">
+                <h3 class="font-semibold text-lg text-gray-700 mb-2"><i class="fas fa-map-marker-alt mr-2"></i> Location</h3>
+                <p class="text-gray-800">
+                    <span class="font-semibold">City:</span> {{ obituary.city or 'N/A' }}<br>
+                    <span class="font-semibold">Province:</span> {{ obituary.province or 'N/A' }}
+                </p>
+            </section>
+
+            <!-- Dates Section -->
+            <section class="p-4 border rounded-lg shadow-sm">
+                <h3 class="font-semibold text-lg text-gray-700 mb-2"><i class="far fa-calendar-alt mr-2"></i> Dates</h3>
+                <p class="text-gray-800">
+                    <span class="font-semibold">Birth:</span> {{ obituary.birth_date or 'N/A' }}<br>
+                    <span class="font-semibold">Death:</span> {{ obituary.death_date or 'N/A' }}
+                </p>
+            </section>
+
+            <!-- Funeral Home Section -->
+            <section class="p-4 border rounded-lg shadow-sm">
+                <h3 class="font-semibold text-lg text-gray-700 mb-2"><i class="fas fa-building mr-2"></i> Funeral Home</h3>
+                <p class="text-gray-800">{{ obituary.funeral_home or 'N/A' }}</p>
+            </section>
+
+        </div> <!-- End Grid Container -->
+
+
+        <!-- Family Information Section (Vertical) -->
         <div class="mb-4">
-            <p class="font-semibold">City:</p>
-            <p>{{ obituary.city or 'N/A' }}</p>
-        </div>
-        <div class="mb-4">
-            <p class="font-semibold">Province:</p>
-            <p>{{ obituary.province or 'N/A' }}</p>
-        </div>
-        <div class="mb-4">
-            <p class="font-semibold">Birth Date:</p>
-            <p>{{ obituary.birth_date or 'N/A' }}</p>
-        </div>
-        <div class="mb-4">
-            <p class="font-semibold">Death Date:</p>
-            <p>{{ obituary.death_date or 'N/A' }}</p>
-        </div>
-        <div class="mb-4">
-            <p class="font-semibold">Funeral Home:</p>
-            <p>{{ obituary.funeral_home or 'N/A' }}</p>
-        </div>
-        <div class="mb-4">
-            <p class="font-semibold">Family Information:</p>
-            <p>{{ obituary.family_information or 'N/A' }}</p>
-        </div>
-        <div class="mb-4">
-            <p class="font-semibold">Donation Information:</p>
-            <p>{{ obituary.donation_information or 'N/A' }}</p>
-        </div>
-        <div class="mb-4">
-            <p class="font-semibold">Obituary URL:</p>
-            <p>
-                <a href="{{ obituary.obituary_url }}" target="_blank" class="text-blue-500 hover:underline">
-                    🔗 View Obituary
-                </a>
-            </p>
-        </div>
-         <div class="mb-4">
-            <p class="font-semibold">Tags:</p>
-            <p>{{ obituary.tags or 'None' }}</p>  <!-- Display tags -->
+            <section class="p-4 border rounded-lg shadow-sm">
+                <h3 class="font-semibold text-lg text-gray-700 mb-2"><i class="fas fa-users mr-2"></i> Family Information</h3>
+                <p class="text-gray-800">{{ obituary.family_information or 'N/A' }}</p>
+            </section>
         </div>
 
-        <div class="mt-6">
-            <a href="/" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+        <!-- Donation Information Section (Vertical) -->
+        <div class="mb-4">
+            <section class="p-4 border rounded-lg shadow-sm">
+                <h3 class="font-semibold text-lg text-gray-700 mb-2"><i class="fas fa-hand-holding-heart mr-2"></i> Donation Information</h3>
+                <p class="text-gray-800">{{ obituary.donation_information or 'N/A' }}</p>
+            </section>
+        </div>
+
+        <!-- Obituary URL Section (Vertical) -->
+        <div class="mb-4">
+            <section class="p-4 border rounded-lg shadow-sm">
+                <h3 class="font-semibold text-lg text-gray-700 mb-2"><i class="fas fa-link mr-2"></i> Obituary URL</h3>
+                <p class="text-gray-800">
+                    <a href="{{ obituary.obituary_url }}" target="_blank" class="text-blue-500 hover:underline">
+                        View Online Obituary 🔗
+                    </a>
+                </p>
+            </section>
+        </div>
+
+        <!-- Tags Section (Vertical) -->
+        <div class="mb-4">
+            <section class="p-4 border rounded-lg shadow-sm">
+                <h3 class="font-semibold text-lg text-gray-700 mb-2"><i class="fas fa-tags mr-2"></i> Tags</h3>
+                <p class="text-gray-800">{{ obituary.tags or 'None' }}</p>
+            </section>
+        </div>
+
+
+        <div class="mt-6 text-center"> <!-- Centered button -->
+            <a href="/" class="primary-button">
                 Back to Dashboard
             </a>
         </div>
