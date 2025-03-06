@@ -74,7 +74,7 @@ def search_obituaries():
 
         logging.info(f"Search Query: {str(query_filter)}") # <----- Log the query
 
-        obituaries = query_filter.order_by(DistinctObituary.last_name).limit(50).all()
+        obituaries = query_filter.order_by(DistinctObituary.last_name).all()
 
         logging.info(f"Search Query returned {len(obituaries)} obituaries") # <----- Log result count
 
