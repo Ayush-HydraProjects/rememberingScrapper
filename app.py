@@ -246,7 +246,7 @@ def about():
 
 if __name__ == "__main__":
     with app.app_context():
-        db.drop_all() # Be careful with drop_all in production!
+        # db.drop_all() # Be careful with drop_all in production!
         db.create_all()
         stop_event.set()
     app.run(debug=True)
