@@ -237,6 +237,13 @@ def download_csv():
 
     return send_file(csv_file, as_attachment=True, download_name="obituaries.csv", mimetype="text/csv")
 
+
+@app.route('/about')
+def about():
+    """Route to display the About page."""
+    return render_template('about.html')
+
+
 if __name__ == "__main__":
     with app.app_context():
         db.drop_all() # Be careful with drop_all in production!
