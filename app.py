@@ -79,6 +79,7 @@ def search_obituaries():
         logging.info(f"Search Query returned {len(obituaries)} obituaries") # <----- Log result count
 
         obituary_list = [{  # Prepare obituary data as dictionaries for JSON response
+            'id': obit.id,
             'name': obit.name,
             'first_name': obit.first_name,
             'last_name': obit.last_name,
