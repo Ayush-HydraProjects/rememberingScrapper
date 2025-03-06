@@ -13,7 +13,7 @@ import time  # For simple delay in stop function
 # Initialize Flask app (rest remains same as before)
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL',
-                                                       'postgresql://postgres:admin@localhost/rememberingDB')
+                                                       'postgresql://postgres:jainish@localhost/postgres')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 migrate = Migrate(app, db)
 db.init_app(app)
