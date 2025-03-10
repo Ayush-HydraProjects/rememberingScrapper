@@ -106,8 +106,6 @@ document.addEventListener('DOMContentLoaded', function () {
     updateScrapingStatusDisplay(); // Initial status update on load
     setInterval(updateScrapingStatusDisplay, 5000);
 
-
-
     document.getElementById("filterForm").addEventListener("submit", function (event) {
         event.preventDefault();
         applyFilters();
