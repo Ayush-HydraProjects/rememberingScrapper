@@ -7,6 +7,8 @@ import logging
 from flask_sqlalchemy import SQLAlchemy
 from models import Obituary, DistinctObituary, db
 
+import csv
+from flask import send_file
 import threading  # Import threading
 import time  # For simple delay in stop function
 
@@ -74,11 +76,12 @@ def search_obituaries():
 
         logging.info(f"Search Query: {str(query_filter)}") # <----- Log the query
 
-        obituaries = query_filter.order_by(DistinctObituary.last_name).limit(50).all()
+        obituaries = query_filter.order_by(DistinctObituary.last_name).all()
 
         logging.info(f"Search Query returned {len(obituaries)} obituaries") # <----- Log result count
 
         obituary_list = [{  # Prepare obituary data as dictionaries for JSON response
+            'id': obit.id,
             'name': obit.name,
             'first_name': obit.first_name,
             'last_name': obit.last_name,
@@ -123,6 +126,12 @@ def start_scrape():
         return jsonify({'message': 'Scraping is already running!'}), 400
 
     stop_event.clear()  # Clear the stop event to start scraping # <---- CHANGED
+
+    # Overwrite CSV before starting the scraper
+    csv_file_path = "obituaries_data.csv"
+    if os.path.exists(csv_file_path):
+        open(csv_file_path, 'w').close()  # Truncate the file (overwrite)
+
     scrape_thread = threading.Thread(target=run_scraper_background, args=(stop_event,)) # Pass stop_event as argument # <---- CHANGED
     scrape_thread.start()
     return jsonify({
@@ -185,9 +194,59 @@ def obituary_detail(pk):
         obituary = DistinctObituary.query.get_or_404(pk) # Fetch from DistinctObituary, or Obituary if you prefer
         return render_template('obituary_detail.html', obituary=obituary)
 
+
+def generate_csv():
+    """Helper function to generate a fresh CSV file from the database."""
+    with app.app_context():
+        obituaries = DistinctObituary.query.all()
+
+        if not obituaries:
+            return None  # No data available
+
+        csv_file_path = "obituaries_data.csv"
+
+        with open(csv_file_path, 'w', newline='') as csvfile:
+            fieldnames = ['id', 'name', 'first_name', 'last_name', 'city', 'province', 'birth_date',
+                          'death_date', 'obituary_url']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for obit in obituaries:
+                writer.writerow({
+                    'id': obit.id,
+                    'name': obit.name,
+                    'first_name': obit.first_name,
+                    'last_name': obit.last_name,
+                    'obituary_url': obit.obituary_url,
+                    'city': obit.city,
+                    'province': obit.province,
+                    'birth_date': obit.birth_date,
+                    'death_date': obit.death_date,
+                    # 'is_alumni': obit.is_alumni
+                })
+
+        return csv_file_path  # Return the file path
+
+
+@app.route('/download_csv')
+def download_csv():
+    """Route to generate and download obituaries data as CSV."""
+    csv_file = generate_csv()  # Generate CSV before downloading
+    if not csv_file:
+        return jsonify({'error': 'No obituaries available to download'}), 404
+
+    return send_file(csv_file, as_attachment=True, download_name="obituaries.csv", mimetype="text/csv")
+
+
+@app.route('/about')
+def about():
+    """Route to display the About page."""
+    return render_template('about.html')
+
+
 if __name__ == "__main__":
     with app.app_context():
-        db.drop_all() # Be careful with drop_all in production!
+        # db.drop_all() # Be careful with drop_all in production!
         db.create_all()
         stop_event.set()
     app.run(debug=True)

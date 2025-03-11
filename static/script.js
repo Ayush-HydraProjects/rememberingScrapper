@@ -82,12 +82,10 @@ function updateScraperUI() { // NEW FUNCTION to update UI elements based on scra
     if (scrapingActive) {
         document.getElementById("startButton").disabled = true;
         document.getElementById("stopButton").disabled = false;
-        console.log('if part:', scrapingActive);
         document.getElementById("scrapingStatus").textContent = "Scraping running...";
     } else {
         document.getElementById("startButton").disabled = false;
         document.getElementById("stopButton").disabled = true;
-        console.log('else part: ', scrapingActive);
         document.getElementById("scrapingStatus").textContent = "Not running";
     }
 }
