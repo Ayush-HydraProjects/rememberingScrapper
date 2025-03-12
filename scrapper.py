@@ -68,7 +68,6 @@ CITY_PROVINCE_MAPPING = {
 "airdrieecho": ("Airdrie", "Alberta"),
 "thecragandcanyon": ("Banff", "Alberta"),
 "thebeaumontnews": ("Beaumont", "Alberta"),
-# "thecragandcanyon": ("Bow Island", "Alberta"),
 "calgary": ("Calgary", "Alberta"),
 "calgaryherald": ("Calgary", "Alberta"),
 "calgarysun": ("Calgary", "Alberta"),
@@ -226,7 +225,7 @@ def process_search_pagination(session, subdomain, visited_search_pages, visited_
     """Fetch obituary pages for a city"""
     time.sleep(0.5)
     base_url = f"https://{subdomain}.{BASE_DOMAIN}"
-    search_url = f"{base_url}/obituaries/all-categories/search?search_type=advanced&ap_search_keyword={SEARCH_KEYWORD}"
+    search_url = f"{base_url}/obituaries/all-categories/search?search_type=advanced&ap_search_keyword={SEARCH_KEYWORD}&sort_by=date&order=desc"
 
     page = 1
     max_pages = 50
@@ -402,6 +401,37 @@ def extract_death_and_birth_dates(text):
 def extract_text(tag):
     return tag.get_text(strip=True) if tag else "N/A"
 
+
+def get_publication_date_from_soup(soup):
+    """
+    Extracts only the date part from the publication line in the BeautifulSoup object.
+
+    Args:
+        soup: BeautifulSoup object of the obituary page.
+
+    Returns:
+        The publication date string, or None if not found or date extraction fails.
+    """
+    publication_date = None
+    published_div = soup.find('div', class_='details-published')
+    if published_div:
+        p_tag = published_div.find('p')
+        if p_tag:
+            text_content = p_tag.text.strip()
+            prefixes = ["Published online ", "Published on "]
+            extracted_date = None
+            for prefix in prefixes:
+                if text_content.startswith(prefix):
+                    extracted_date = text_content[len(prefix):].strip()
+                    break # Stop after finding the first matching prefix
+            if extracted_date:
+                publication_date = extracted_date
+            else:
+                logging.warning(f"Publication date prefix not found in: '{text_content}'")
+                publication_date = text_content # Or publication_date = None, or handle as needed
+
+    return publication_date
+
 def process_obituary(session, db_session, url, visited_obituaries, stop_event):
     time.sleep(0.2)
     if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
@@ -418,6 +448,10 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
         response = session.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
+
+        publication_date_text = get_publication_date_from_soup(soup)
+        logging.info(f"Publication Date: {publication_date_text}")  # Print to terminal
+
 
         # Extract name components
         obit_name_tag = soup.find("h1", class_="obit-name")
@@ -468,6 +502,7 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                     family_information=content,
                     funeral_home=funeral_home,  # Save funeral home
                     tags=tags,  # Save tags (initially None)
+                    publication_date=publication_date_text,
                 )
                 db.session.add(obituary_entry)
                 db.session.flush()
@@ -489,13 +524,14 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                         family_information=content,
                         funeral_home=funeral_home,  # Save funeral home
                         tags=tags,  # Save tags (initially None)
+                        publication_date=publication_date_text,
                     )
                     db.session.add(distinct_obituary_entry)
 
                 db.session.commit()
 
         logging.info(f"Obituary saved: {first_name} {last_name} {'✅ (Alumni)' if is_alumni else '❌ (Not Alumni)'}")
-        return {"name": f"{first_name} {last_name}", "is_alumni": is_alumni, "url": url}
+        return {"name": f"{first_name} {last_name}", "is_alumni": is_alumni, "url": url, "publication_date": publication_date_text}
 
     except Exception as e:
         logging.error(f"Error processing obituary {url}: {e}")

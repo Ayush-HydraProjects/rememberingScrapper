@@ -12,6 +12,8 @@ from flask import send_file
 import threading  # Import threading
 import time  # For simple delay in stop function
 
+from datetime import datetime
+
 # Initialize Flask app (rest remains same as before)
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL',
@@ -26,6 +28,7 @@ from scrapper import main
 # --- Global variables to track scraper state ---
 scrape_thread = None  # To hold the scraping thread
 stop_event = threading.Event()  # Use threading.Event instead of boolean flag # <---- CHANGED
+last_scrape_time = None
 
 # --- Flask Routes ---
 @app.route('/')
@@ -98,10 +101,10 @@ def search_obituaries():
 
 @app.route('/get_obituaries')
 def get_obituaries():
-    """Route to fetch latest distinct alumni obituaries data, limited to 15 initially."""
+    """Route to fetch distinct alumni obituaries data, ordered by city and publication date."""
     with app.app_context():
-        obituaries = DistinctObituary.query.all() # Limit to 15 entries
-        obituary_list = [{  # Prepare distinct obituary data as dictionaries
+        obituaries = DistinctObituary.query.order_by(DistinctObituary.city.asc(), DistinctObituary.publication_date.desc()).limit(100).all()
+        obituary_list = [{
             'id': obit.id,
             'name': obit.name,
             'first_name': obit.first_name,
@@ -111,16 +114,16 @@ def get_obituaries():
             'province': obit.province,
             'birth_date': obit.birth_date,
             'death_date': obit.death_date,
-            # 'funeral_home': obit.funeral_home,
+            'publication_date': obit.publication_date,
             'is_alumni': obit.is_alumni,
         } for obit in obituaries]
-        return jsonify(obituary_list)  # Return JSON response
+        return jsonify(obituary_list)
 
 
 @app.route('/start_scrape', methods=['POST'])
 def start_scrape():
     """Route to start the scraper in a background thread."""
-    global scrape_thread, stop_event
+    global scrape_thread, stop_event, last_scrape_time
 
     if not stop_event.is_set(): # Check event status instead of boolean flag # <---- CHANGED
         return jsonify({'message': 'Scraping is already running!'}), 400
@@ -134,32 +137,41 @@ def start_scrape():
 
     scrape_thread = threading.Thread(target=run_scraper_background, args=(stop_event,)) # Pass stop_event as argument # <---- CHANGED
     scrape_thread.start()
+
+    last_scrape_time = datetime.now()
+
     return jsonify({
         'message': 'Scraping started in the background.',
-        'scraping_active': True  # Add this line
+        'scraping_active': True, # Add this line
+        'last_scrape_time': last_scrape_time.isoformat()
     })
 
 
 @app.route('/stop_scrape', methods=['POST'])
 def stop_scrape():
     """Route to stop the scraper (set event to stop gracefully)."""
-    global stop_event
+    global stop_event, last_scrape_time
 
     if stop_event.is_set(): # Check event status instead of boolean flag # <---- CHANGED
         return jsonify({'message': 'Scraping is not currently running!'}), 400
 
     stop_event.set()  # Set the stop event to signal scraper to stop # <---- CHANGED
     time.sleep(2)  # Keep delay for testing, can remove later
+
+    last_scrape_time = datetime.now()
+
     return jsonify({
         'message': 'Stopping scraping...',
-        'scraping_active': False  # Add this line
+        'scraping_active': False,
+        'last_scrape_time': last_scrape_time.isoformat() # Add this line
     })
 
 
 @app.route('/scrape_status')
 def scrape_status():
+    global last_scrape_time
     """Route to get the current scraping status."""
-    return jsonify({'scraping_active': not stop_event.is_set()})
+    return jsonify({'scraping_active': not stop_event.is_set(), 'last_scrape_time': last_scrape_time.isoformat() if last_scrape_time else None})
 
 
 def run_scraper_background(stop_event):
