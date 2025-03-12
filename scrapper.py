@@ -65,126 +65,126 @@ def configure_session():
     return session
 
 CITY_PROVINCE_MAPPING = {
-"airdrieecho": ("Airdrie", "Alberta"),
-"thecragandcanyon": ("Banff", "Alberta"),
-"thebeaumontnews": ("Beaumont", "Alberta"),
+# "airdrieecho": ("Airdrie", "Alberta"),
+# "thecragandcanyon": ("Banff", "Alberta"),
+# "thebeaumontnews": ("Beaumont", "Alberta"),
 # "thecragandcanyon": ("Bow Island", "Alberta"),
-"calgary": ("Calgary", "Alberta"),
-"calgaryherald": ("Calgary", "Alberta"),
-"calgarysun": ("Calgary", "Alberta"),
-"cochranetimes": ("Cochrane", "Alberta"),
-"coldlakesun": ("Cold Lake", "Alberta"),
-"devondispatch": ("Edmonton", "Alberta"),
-"draytonvalleywesternreview": ("Edmonton", "Alberta"),
-"edmonton": ("Edmonton", "Alberta"),
-"edmontonjournal": ("Edmonton", "Alberta"),
-"edmontonsun": ("Edmonton", "Alberta"),
-"edson": ("Edson", "Alberta"),
-"fairviewpost": ("Grande Prairie", "Alberta"),
-"fortmcmurraytoday": ("Fort McMurray", "Alberta"),
-"fortsaskatchewanrecord": ("Fort Saskatchewan", "Alberta"),
-"peacecountrysun": ("Grande Prairie", "Alberta"),
-"hannaherald": ("Drumheller", "Alberta"),
-"highrivertimes": ("High River", "Alberta"),
-"hinton": ("Edmonton", "Alberta"),
-"lacombe": ("Lacombe", "Alberta"),
-"leducrep": ("Leduc", "Alberta"),
-"mayerthorpefreelancer": ("Edmonton", "Alberta"),
-"nantonnews": ("Calgary", "Alberta"),
-"prrecordgazette": ("Grande Prairie", "Alberta"),
-"pinchercreekecho": ("Lethbridge", "Alberta"),
-"sherwoodparknews": ("Edmonton", "Alberta"),
-"sprucestony": ("Spruce Grove", "Alberta"),
-"vermilionstandard": ("Lloydminster", "Alberta"),
-"vulcanadvocate": ("Lethbridge", "Alberta"),
-"wetaskiwintimes": ("Wetaskiwin", "Alberta"),
-"whitecourtstar": ("Whitecourt", "Alberta"),
-"princegeorgepost": ("Prince George", "British Columbia"),
-"vancouversunandprovince": ("Vancouver", "British Columbia"),
-"altona": ("Altona", "Manitoba"),
-"beausejour": ("Beausejour", "Manitoba"),
-"carman": ("Carman", "Manitoba"),
-"gimli": ("Winnipeg", "Manitoba"),
-"lacdubonnet": ("Lac du Bonnet", "Manitoba"),
-"morden": ("Morden", "Manitoba"),
-"thegraphicleader": ("Portage la Prairie", "Manitoba"),
-"selkirk": ("Selkirk", "Manitoba"),
-"stonewall": ("Stonewall", "Manitoba"),
-"winkler": ("Winkler", "Manitoba"),
-"winnipegsun": ("Winnipeg", "Manitoba"),
-"northernlight": ("Bathurst", "New Brunswick"),
-"thetribune": ("Campbellton", "New Brunswick"),
-"dailygleaner": ("Fredericton", "New Brunswick"),
-"tjnews": ("Grand Falls & Edmundston", "New Brunswick"),
-"miramichileader": ("Miramichi", "New Brunswick"),
-"timesandtranscript": ("Moncton", "New Brunswick"),
-"letoile": ("Régions Acadiennes", "New Brunswick"), # Assuming 'obituaries' subdomain maps to "Régions Acadiennes" as per your earlier mapping for L'etoile
-"telegraph-journal": ("Saint John", "New Brunswick"),
-"kingscountyrecord": ("Sussex", "New Brunswick"),
-"bugleobserver": ("Woodstock", "New Brunswick"),
-"thetelegram": ("St. John's", "Newfoundland and Labrador"),
-"theannapolisvalleyregister": ("Annapolis Royal", "Nova Scotia"),
-"thecapebretonpost": ("Cape Breton", "Nova Scotia"),
-"thetricountyvanguard": ("Digby, Shelburne and Yarmouth Counties", "Nova Scotia"),
-"thechronicleherald": ("Halifax", "Nova Scotia"),
-"thevalleyjournaladvertiser": ("Hantsport", "Nova Scotia"),
-"thenewglasgownews": ("New Glasgow", "Nova Scotia"),
-"thetruronews": ("Truro", "Nova Scotia"),
-"intelligencer": ("Belleville", "Ontario"),
+# "calgary": ("Calgary", "Alberta"),
+# "calgaryherald": ("Calgary", "Alberta"),
+# "calgarysun": ("Calgary", "Alberta"),
+# "cochranetimes": ("Cochrane", "Alberta"),
+# "coldlakesun": ("Cold Lake", "Alberta"),
+# "devondispatch": ("Edmonton", "Alberta"),
+# "draytonvalleywesternreview": ("Edmonton", "Alberta"),
+# "edmonton": ("Edmonton", "Alberta"),
+# "edmontonjournal": ("Edmonton", "Alberta"),
+# "edmontonsun": ("Edmonton", "Alberta"),
+# "edson": ("Edson", "Alberta"),
+# "fairviewpost": ("Grande Prairie", "Alberta"),
+# "fortmcmurraytoday": ("Fort McMurray", "Alberta"),
+# "fortsaskatchewanrecord": ("Fort Saskatchewan", "Alberta"),
+# "peacecountrysun": ("Grande Prairie", "Alberta"),
+# "hannaherald": ("Drumheller", "Alberta"),
+# "highrivertimes": ("High River", "Alberta"),
+# "hinton": ("Edmonton", "Alberta"),
+# "lacombe": ("Lacombe", "Alberta"),
+# "leducrep": ("Leduc", "Alberta"),
+# "mayerthorpefreelancer": ("Edmonton", "Alberta"),
+# "nantonnews": ("Calgary", "Alberta"),
+# "prrecordgazette": ("Grande Prairie", "Alberta"),
+# "pinchercreekecho": ("Lethbridge", "Alberta"),
+# "sherwoodparknews": ("Edmonton", "Alberta"),
+# "sprucestony": ("Spruce Grove", "Alberta"),
+# "vermilionstandard": ("Lloydminster", "Alberta"),
+# "vulcanadvocate": ("Lethbridge", "Alberta"),
+# "wetaskiwintimes": ("Wetaskiwin", "Alberta"),
+# "whitecourtstar": ("Whitecourt", "Alberta"),
+# "princegeorgepost": ("Prince George", "British Columbia"),
+# "vancouversunandprovince": ("Vancouver", "British Columbia"),
+# "altona": ("Altona", "Manitoba"),
+# "beausejour": ("Beausejour", "Manitoba"),
+# "carman": ("Carman", "Manitoba"),
+# "gimli": ("Winnipeg", "Manitoba"),
+# "lacdubonnet": ("Lac du Bonnet", "Manitoba"),
+# "morden": ("Morden", "Manitoba"),
+# "thegraphicleader": ("Portage la Prairie", "Manitoba"),
+# "selkirk": ("Selkirk", "Manitoba"),
+# "stonewall": ("Stonewall", "Manitoba"),
+# "winkler": ("Winkler", "Manitoba"),
+# "winnipegsun": ("Winnipeg", "Manitoba"),
+# "northernlight": ("Bathurst", "New Brunswick"),
+# "thetribune": ("Campbellton", "New Brunswick"),
+# "dailygleaner": ("Fredericton", "New Brunswick"),
+# "tjnews": ("Grand Falls & Edmundston", "New Brunswick"),
+# "miramichileader": ("Miramichi", "New Brunswick"),
+# "timesandtranscript": ("Moncton", "New Brunswick"),
+# "letoile": ("Régions Acadiennes", "New Brunswick"), # Assuming 'obituaries' subdomain maps to "Régions Acadiennes" as per your earlier mapping for L'etoile
+# "telegraph-journal": ("Saint John", "New Brunswick"),
+# "kingscountyrecord": ("Sussex", "New Brunswick"),
+# "bugleobserver": ("Woodstock", "New Brunswick"),
+# "thetelegram": ("St. John's", "Newfoundland and Labrador"),
+# "theannapolisvalleyregister": ("Annapolis Royal", "Nova Scotia"),
+# "thecapebretonpost": ("Cape Breton", "Nova Scotia"),
+# "thetricountyvanguard": ("Digby, Shelburne and Yarmouth Counties", "Nova Scotia"),
+# "thechronicleherald": ("Halifax", "Nova Scotia"),
+# "thevalleyjournaladvertiser": ("Hantsport", "Nova Scotia"),
+# "thenewglasgownews": ("New Glasgow", "Nova Scotia"),
+# "thetruronews": ("Truro", "Nova Scotia"),
+# "intelligencer": ("Belleville", "Ontario"),
 "brantfordexpositor": ("Brantford", "Ontario"),
-"recorder": ("Brockville", "Ontario"),
-"chathamdailynews": ("Chatham", "Ontario"),
-"clintonnewsrecord": ("Clinton", "Ontario"),
-"cochranetimespost": ("Cochrane", "Ontario"),
-"standard-freeholder": ("Cornwall", "Ontario"),
-"norfolkandtillsonburgnews": ("Delhi", "Ontario"),
-"elliotlakestandard": ("Elliot Lake", "Ontario"),
-"midnorthmonitor": ("Sudbury", "Ontario"),
-"lakeshoreadvance": ("London", "Ontario"),
-"gananoquereporter": ("Kingston", "Ontario"),
-"goderichsignalstar": ("Goderich", "Ontario"),
-"thepost": ("Durham", "Ontario"),
-"kenoraminerandnews": ("Kenora", "Ontario"),
-"kincardinenews": ("Port Elgin", "Ontario"),
-"thewhig": ("Kingston", "Ontario"),
-"northernnews": ("Kirkland Lake", "Ontario"),
-"lfpress": ("London", "Ontario"),
-"lucknowsentinel": ("Lucknow", "Ontario"),
-"mitchelladvocate": ("Mitchell", "Ontario"),
-"napaneeguide": ("Kingston", "Ontario"),
-"nationalpost": ("National Post", "Ontario"),
-"nugget": ("North Bay", "Ontario"),
-"ottawa": ("Ottawa", "Ontario"),
-"ottawacitizen": ("Ottawa", "Ontario"),
-"ottawasun": ("Ottawa", "Ontario"),
-"owensoundsuntimes": ("Owen Sound", "Ontario"),
-"parisstaronline": ("Brantford", "Ontario"),
-"pembrokeobserver": ("Pembroke", "Ontario"),
-"countyweeklynews": ("Belleville", "Ontario"),
-"shorelinebeacon": ("Port Elgin", "Ontario"),
-"theobserver": ("Sarnia", "Ontario"),
-"saultstar": ("Sault Ste. Marie", "Ontario"),
-"seaforthhuronexpositor": ("Huron County", "Ontario"),
-"simcoereformer": ("Simcoe", "Ontario"),
-"stthomastimesjournal": ("St. Thomas", "Ontario"),
-"communitypress": ("Stirling", "Ontario"),
-"stratfordbeaconherald": ("Stratford", "Ontario"),
-"strathroyagedispatch": ("London", "Ontario"),
-"thesudburystar": ("Sudbury", "Ontario"),
-"timminspress": ("Timmins", "Ontario"),
-"torontosun": ("Toronto", "Ontario"),
-"trentonian": ("Trenton", "Ontario"),
-"wallaceburgcourierpress": ("Wallaceburg", "Ontario"),
-"thechronicle-online": ("St. Thomas", "Ontario"),
-"wiartonecho": ("Owen Sound", "Ontario"),
-"windsorstar": ("Windsor", "Ontario"),
-"woodstocksentinelreview": ("Woodstock", "Ontario"),
-"theguardian": ("Charlottetown", "Prince Edward Island"),
-"thejournalpioneer": ("Summerside", "Prince Edward Island"),
-"montrealgazette": ("Montreal", "Quebec"),
-"melfortnipawinjournal": ("Melfort", "Saskatchewan"),
-"leaderpost": ("Regina", "Saskatchewan"),
-"thestarphoenix": ("Saskatoon", "Saskatchewan"),
+# "recorder": ("Brockville", "Ontario"),
+# "chathamdailynews": ("Chatham", "Ontario"),
+# "clintonnewsrecord": ("Clinton", "Ontario"),
+# "cochranetimespost": ("Cochrane", "Ontario"),
+# "standard-freeholder": ("Cornwall", "Ontario"),
+# "norfolkandtillsonburgnews": ("Delhi", "Ontario"),
+# "elliotlakestandard": ("Elliot Lake", "Ontario"),
+# "midnorthmonitor": ("Sudbury", "Ontario"),
+# "lakeshoreadvance": ("London", "Ontario"),
+# "gananoquereporter": ("Kingston", "Ontario"),
+# "goderichsignalstar": ("Goderich", "Ontario"),
+# "thepost": ("Durham", "Ontario"),
+# "kenoraminerandnews": ("Kenora", "Ontario"),
+# "kincardinenews": ("Port Elgin", "Ontario"),
+# "thewhig": ("Kingston", "Ontario"),
+# "northernnews": ("Kirkland Lake", "Ontario"),
+# "lfpress": ("London", "Ontario"),
+# "lucknowsentinel": ("Lucknow", "Ontario"),
+# "mitchelladvocate": ("Mitchell", "Ontario"),
+# "napaneeguide": ("Kingston", "Ontario"),
+# "nationalpost": ("National Post", "Ontario"),
+# "nugget": ("North Bay", "Ontario"),
+# "ottawa": ("Ottawa", "Ontario"),
+# "ottawacitizen": ("Ottawa", "Ontario"),
+# "ottawasun": ("Ottawa", "Ontario"),
+# "owensoundsuntimes": ("Owen Sound", "Ontario"),
+# "parisstaronline": ("Brantford", "Ontario"),
+# "pembrokeobserver": ("Pembroke", "Ontario"),
+# "countyweeklynews": ("Belleville", "Ontario"),
+# "shorelinebeacon": ("Port Elgin", "Ontario"),
+# "theobserver": ("Sarnia", "Ontario"),
+# "saultstar": ("Sault Ste. Marie", "Ontario"),
+# "seaforthhuronexpositor": ("Huron County", "Ontario"),
+# "simcoereformer": ("Simcoe", "Ontario"),
+# "stthomastimesjournal": ("St. Thomas", "Ontario"),
+# "communitypress": ("Stirling", "Ontario"),
+# "stratfordbeaconherald": ("Stratford", "Ontario"),
+# "strathroyagedispatch": ("London", "Ontario"),
+# "thesudburystar": ("Sudbury", "Ontario"),
+# "timminspress": ("Timmins", "Ontario"),
+# "torontosun": ("Toronto", "Ontario"),
+# "trentonian": ("Trenton", "Ontario"),
+# "wallaceburgcourierpress": ("Wallaceburg", "Ontario"),
+# "thechronicle-online": ("St. Thomas", "Ontario"),
+# "wiartonecho": ("Owen Sound", "Ontario"),
+# "windsorstar": ("Windsor", "Ontario"),
+# "woodstocksentinelreview": ("Woodstock", "Ontario"),
+# "theguardian": ("Charlottetown", "Prince Edward Island"),
+# "thejournalpioneer": ("Summerside", "Prince Edward Island"),
+# "montrealgazette": ("Montreal", "Quebec"),
+# "melfortnipawinjournal": ("Melfort", "Saskatchewan"),
+# "leaderpost": ("Regina", "Saskatchewan"),
+# "thestarphoenix": ("Saskatoon", "Saskatchewan"),
 }
 
 def extract_city_and_province(url):
@@ -226,7 +226,7 @@ def process_search_pagination(session, subdomain, visited_search_pages, visited_
     """Fetch obituary pages for a city"""
     time.sleep(0.5)
     base_url = f"https://{subdomain}.{BASE_DOMAIN}"
-    search_url = f"{base_url}/obituaries/all-categories/search?search_type=advanced&ap_search_keyword={SEARCH_KEYWORD}"
+    search_url = f"{base_url}/obituaries/all-categories/search?search_type=advanced&ap_search_keyword={SEARCH_KEYWORD}&sort_by=date&order=desc"
 
     page = 1
     max_pages = 50
@@ -316,6 +316,8 @@ def process_city(session, subdomain, stop_event): # <- Removed state params
 
     logging.info(f"City {subdomain} completed. Alumni found: {total_alumni}")
 
+
+
 def extract_dates(soup):
     """
     Extracts birth and death dates from the obituary details, takes soup as argument.
@@ -402,6 +404,107 @@ def extract_death_and_birth_dates(text):
 def extract_text(tag):
     return tag.get_text(strip=True) if tag else "N/A"
 
+# def process_obituary(session, db_session, url, visited_obituaries, stop_event):
+#     time.sleep(0.2)
+#     if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
+#         logging.info("Scraping stopped by user request (obituary level - before processing).")
+#         return None
+
+#     """Extract obituary details, check for alumni keywords, and store in both tables."""
+#     if url in visited_obituaries:
+#         return None
+#     visited_obituaries.add(url)
+
+#     logging.info(f"Processing obituary: {url}")
+#     try:
+#         response = session.get(url)
+#         response.raise_for_status()
+#         soup = BeautifulSoup(response.text, "html.parser")
+
+#         # Extract name components
+#         obit_name_tag = soup.find("h1", class_="obit-name")
+#         last_name_tag = soup.find("span", class_="obit-lastname-upper")
+
+#         first_name = extract_text(obit_name_tag).replace(extract_text(last_name_tag), "").strip() if obit_name_tag and last_name_tag else None
+#         last_name = extract_text(last_name_tag).capitalize() if last_name_tag else None
+
+#         if not first_name or not last_name:
+#             logging.error(f"Missing name for obituary: {url}")
+#             return None
+
+#         content = soup.select_one("span.details-copy").get_text(strip=True) if soup.select_one("span.details-copy") else ""
+
+#         donation_keywords = ["donation", "charity", "memorial fund", "contributions"]
+#         donation_mentions = [sentence for sentence in content.split(". ") if
+#                              any(keyword in sentence.lower() for keyword in donation_keywords)]
+#         donation_info = "; ".join(donation_mentions)
+
+#         funeral_home_tag = soup.find("span", class_="obit-fh")  # Example selector - adjust as needed
+#         funeral_home = extract_text(funeral_home_tag) if funeral_home_tag else None
+
+#         # Tags - Initialize as None for now, will be managed in UI
+#         tags = None # Or tags = "" if you prefer empty string
+
+#         # Extract dates and location
+#         birth_date, death_date = extract_dates(soup)
+#         city, province = extract_city_and_province(url)
+
+#         # Check for alumni status
+#         is_alumni = any(keyword in content for keyword in ALUMNI_KEYWORDS)
+
+#         if is_alumni:
+#             from app import app
+#             with app.app_context():
+#                 # Save to Obituary table
+#                 obituary_entry = Obituary(
+#                     name=f"{first_name} {last_name}",
+#                     first_name=first_name,
+#                     last_name=last_name,
+#                     birth_date=birth_date,
+#                     death_date=death_date,
+#                     donation_information=donation_info,
+#                     obituary_url=url,
+#                     city=city,
+#                     province=province,
+#                     is_alumni=is_alumni,
+#                     family_information=content,
+#                     funeral_home=funeral_home,  # Save funeral home
+#                     tags=tags,  # Save tags (initially None)
+#                 )
+#                 db.session.add(obituary_entry)
+#                 db.session.flush()
+
+#                 # Save to DistinctObituary if not already present
+#                 distinct_entry_exists = DistinctObituary.query.filter_by(name=f"{first_name} {last_name}").first()
+#                 if not distinct_entry_exists:
+#                     distinct_obituary_entry = DistinctObituary(
+#                         name=f"{first_name} {last_name}",
+#                         first_name=first_name,
+#                         last_name=last_name,
+#                         birth_date=birth_date,
+#                         death_date=death_date,
+#                         donation_information=donation_info,
+#                         obituary_url=url,
+#                         city=city,
+#                         province=province,
+#                         is_alumni=is_alumni,
+#                         family_information=content,
+#                         funeral_home=funeral_home,  # Save funeral home
+#                         tags=tags,  # Save tags (initially None)
+#                     )
+#                     db.session.add(distinct_obituary_entry)
+
+#                 db.session.commit()
+
+#         logging.info(f"Obituary saved: {first_name} {last_name} {'✅ (Alumni)' if is_alumni else '❌ (Not Alumni)'}")
+#         return {"name": f"{first_name} {last_name}", "is_alumni": is_alumni, "url": url}
+
+#     except Exception as e:
+#         logging.error(f"Error processing obituary {url}: {e}")
+#         return None
+
+
+
 def process_obituary(session, db_session, url, visited_obituaries, stop_event):
     time.sleep(0.2)
     if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
@@ -447,6 +550,17 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
         birth_date, death_date = extract_dates(soup)
         city, province = extract_city_and_province(url)
 
+        # ********************  ADD THIS SECTION  ********************
+        # Extract publication date
+        publication_date_tag = soup.find("div", class_="details-published")
+        publication_date = None
+        if publication_date_tag:
+            # Extract the text and remove "Published on"
+            publication_date_text = publication_date_tag.get_text(strip=True).replace("Published on", "").strip()
+            publication_date = publication_date_text
+        logging.info(f"Pulblished on : {publication_date}")
+        # ********************  END ADDED SECTION  ********************
+
         # Check for alumni status
         is_alumni = any(keyword in content for keyword in ALUMNI_KEYWORDS)
 
@@ -467,6 +581,7 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                     is_alumni=is_alumni,
                     family_information=content,
                     funeral_home=funeral_home,  # Save funeral home
+                    publication_date=publication_date,
                     tags=tags,  # Save tags (initially None)
                 )
                 db.session.add(obituary_entry)
@@ -488,6 +603,7 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                         is_alumni=is_alumni,
                         family_information=content,
                         funeral_home=funeral_home,  # Save funeral home
+                        publication_date = publication_date,
                         tags=tags,  # Save tags (initially None)
                     )
                     db.session.add(distinct_obituary_entry)
