@@ -398,6 +398,66 @@ def extract_death_and_birth_dates(text):
 
     return death_date, birth_date
 
+def extract_year_from_date(date_string):
+    """
+    Extracts the year from a date string in various formats.
+    Returns the year as an integer if found and valid, otherwise None.
+    """
+    year_match = re.search(r'\b(\d{4})\b', date_string)
+    if year_match:
+        year = int(year_match.group(1))
+        return year
+    else:
+        # Handle cases where year might be in 2-digit format and assume 21st century if ambiguous, otherwise None
+        year_match_2digit = re.search(r'/(\d{2})$|[-](\d{2})$|,?\s+(\d{2})$', date_string) # check for 2 digit year at end after /,- or space, comma
+        if year_match_2digit:
+            year_str = next((item for item in year_match_2digit.groups() if item is not None), None) # get the first non-None group
+            if year_str:
+                year = int(year_str)
+                if 0 <= year <= 99: # Basic 2-digit year handling, assuming 21st century
+                    return 2000 + year
+        return None
+
+
+def extract_birth_and_death_dates_from_obituary(text):
+        """
+        Extracts the first date found in the obituary text as the death date,
+        only if the year of the date is greater than 2000. Birth date is always set to None.
+        This is a simplified approach and may not be accurate in all cases.
+        Returns:
+            A tuple containing None as birth_date and the extracted death date string
+            (or None if not found or year is not > 2000).
+        """
+        dates_found = []
+        date_patterns = [
+            r'\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b',
+            r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{1,2},?\s+\d{4}\b',
+            r'\b\d{1,2}/\d{1,2}/\d{2,4}\b',
+            r'\b\d{1,2}-\d{1,2}-\d{2,4}\b',
+            r'\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\b',
+            r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b',
+            r'\b\d{4}\b'
+        ]
+
+        for pattern in date_patterns:
+            for match in re.finditer(pattern, text, re.IGNORECASE):
+                dates_found.append(match.group(0))
+                if len(dates_found) == 1: # Only need the first date for death date check
+                    break
+            if len(dates_found) == 1:
+                break
+
+        death_date = None
+        if dates_found:
+            first_date_found = dates_found[0]
+            year = extract_year_from_date(first_date_found)
+            if year and year > 2000:
+                death_date = first_date_found
+            else:
+                death_date = None # Set to None if year is not > 2000 or year extraction failed
+
+        return None, death_date
+
 def extract_text(tag):
     return tag.get_text(strip=True) if tag else "N/A"
 
@@ -478,7 +538,30 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
         tags = None # Or tags = "" if you prefer empty string
 
         # Extract dates and location
-        birth_date, death_date = extract_dates(soup)
+        obit_dates_tag = soup.find("h2", class_="obit-dates")
+
+        if obit_dates_tag:
+            # Check if the tag has any text content after removing whitespace
+            tag_content = obit_dates_tag.get_text(strip=True)  # Get text and strip whitespace
+            if tag_content:  # Check if tag_content is not empty
+                # Condition: h2.obit-dates tag IS found AND has content
+                logging.info("h2.obit-dates tag found and has content, using extract_dates function")
+                birth_date, death_date = extract_dates(soup)  # Call extract_dates with the soup object
+            else:
+                # Condition: h2.obit-dates tag IS found BUT is empty
+                logging.info("h2.obit-dates tag found but is empty, using extract_death_and_birth_dates function")
+                birth_date, death_date = extract_birth_and_death_dates_from_obituary(content)
+        else:
+            # Condition: h2.obit-dates tag IS NOT found in the soup
+            logging.info("h2.obit-dates tag not found, using extract_death_and_birth_dates function")
+            birth_date, death_date = extract_birth_and_death_dates_from_obituary(content)
+
+        # Now you have 'birth_date' and 'death_date' variables set based on the condition.
+        # You can continue to use these variables in your code.
+
+        logging.info(f"Extracted Dates: Birth Date: {birth_date}, Death Date: {death_date}")
+
+
         city, province = extract_city_and_province(url)
 
         # Check for alumni status
