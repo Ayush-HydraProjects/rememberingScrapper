@@ -8,10 +8,10 @@ import logging
 from flask_sqlalchemy import SQLAlchemy
 from models import Obituary, DistinctObituary, db
 
-import csv, json  # Import json module (already present, just confirming)
+import csv, json
 from flask import send_file
-import threading  # Import threading
-import time  # For simple delay in stop function
+import threading
+import time
 
 from datetime import datetime
 
@@ -27,8 +27,8 @@ db.init_app(app)
 from scrapper import main
 
 # --- Global variables to track scraper state ---
-scrape_thread = None  # To hold the scraping thread
-stop_event = threading.Event()  # Use threading.Event instead of boolean flag
+scrape_thread = None
+stop_event = threading.Event()
 last_scrape_time = None
 
 # --- Flask Routes ---
@@ -72,17 +72,17 @@ def search_obituaries():
 
 
         if query_string: # Simple search - if general query is present, it takes precedence
-             query_filter = DistinctObituary.query.filter( # Overwrite query_filter for simple search
+             query_filter = DistinctObituary.query.filter(
                 (DistinctObituary.first_name.ilike(f"%{query_string}%")) |
                 (DistinctObituary.last_name.ilike(f"%{query_string}%")) |
                  (DistinctObituary.content.ilike(f"%{query_string}%")) # Assuming content exists in DistinctObituary
             )
 
-        logging.info(f"Search Query: {str(query_filter)}") # <----- Log the query
+        logging.info(f"Search Query: {str(query_filter)}")
 
         obituaries = query_filter.order_by(DistinctObituary.last_name).all()
 
-        logging.info(f"Search Query returned {len(obituaries)} obituaries") # <----- Log result count
+        logging.info(f"Search Query returned {len(obituaries)} obituaries")
 
         obituary_list = [{  # Prepare obituary data as dictionaries for JSON response
             'id': obit.id,
@@ -94,7 +94,7 @@ def search_obituaries():
             'province': obit.province,
             'birth_date': obit.birth_date,
             'death_date': obit.death_date,
-            'publication_date': obit.publication_date, # <---- Make sure publication_date is included
+            'publication_date': obit.publication_date,
             'is_alumni': obit.is_alumni,
         } for obit in obituaries]
 
@@ -121,8 +121,6 @@ def get_obituaries():
         } for obit in obituaries]
         return jsonify(obituary_list)
 
-
-# ---------------------- NEW API ENDPOINT FOR YEAR-GROUPED DATA (NOT USED BY CURRENT FRONTEND, BUT KEPT) ----------------------
 @app.route('/api/publications/grouped-by-year')
 def get_publications_by_year_endpoint():
     """API endpoint to get publications grouped by year."""
@@ -177,7 +175,6 @@ def get_publications_grouped_by_year():
     except Exception as e:
         print(f"Database error fetching publications by year: {e}")
         return None
-# ---------------------- END OF NEW API ENDPOINT ----------------------
 
 
 @app.route('/start_scrape', methods=['POST'])

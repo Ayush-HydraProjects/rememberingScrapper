@@ -228,7 +228,7 @@ def process_search_pagination(session, subdomain, visited_search_pages, visited_
     search_url = f"{base_url}/obituaries/all-categories/search?search_type=advanced&ap_search_keyword={SEARCH_KEYWORD}&sort_by=date&order=desc"
 
     page = 1
-    max_pages = 50
+    max_pages = 200
 
     while page <= max_pages:
 
@@ -271,15 +271,12 @@ def process_search_pagination(session, subdomain, visited_search_pages, visited_
 
 def process_city(session, subdomain, stop_event): # <- Removed state params
     """Process all obituary pages in a city"""
-    # if subdomain in processed_cities: <- Removed processed_cities check
-    #     return  <- Removed processed_cities check
-    # processed_cities.add(subdomain) <- Removed processed_cities state update
 
     logging.info(f"\nProcessing city: {subdomain.upper()}\n" + "=" * 50)
 
     total_alumni = 0
-    visited_search_pages = set() # Initialize here, not loaded from state
-    visited_obituaries = set() # Initialize here, not loaded from state
+    visited_search_pages = set()
+    visited_obituaries = set()
 
 
     for page_urls in process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event): # <- Removed state params
@@ -287,11 +284,6 @@ def process_city(session, subdomain, stop_event): # <- Removed state params
         if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
             logging.info("Scraping stopped by user request (city level - start of city processing).")
             break
-        # save_state({ <- Removed save_state call
-        #     'processed_cities': list(processed_cities),
-        #     'visited_search_pages': list(visited_search_pages),
-        #     'visited_obituaries': list(visited_obituaries)
-        # })
 
         for url in page_urls:
             if stop_event.is_set():  # Check stop_event before processing each URL  <- CHANGED
@@ -302,14 +294,14 @@ def process_city(session, subdomain, stop_event): # <- Removed state params
                 continue
 
 
-            # ✅ Now correctly passing db.session
+            #  Now correctly passing db.session
             result = process_obituary(session, db.session, url, visited_obituaries, stop_event)
             if result and result["is_alumni"]:
                 total_alumni += 1
 
             time.sleep(random.uniform(0.7, 1.3))
 
-            if stop_event.is_set():  # Check stop_event after processing all URLs  <- CHANGED
+            if stop_event.is_set():
                 logging.info("Scraping stopped by user request (city level - after processing urls).")
                 break
 
@@ -325,14 +317,11 @@ def extract_dates(soup):
 
     obit_dates_tag = soup.find("h2", class_="obit-dates")
     if obit_dates_tag:
-        # Get a list of date strings by parsing through all the code that isn't a span
         date_strings = [s.strip() for s in obit_dates_tag.strings if s.strip()]  # Account for empty strings
 
         if len(date_strings) == 1:
-            # If only one date is found, treat it as the death date by default
             death_date = date_strings[0]  # Keep the date exactly as it is without appending a year
         elif len(date_strings) >= 2:
-            # If two or more dates are found, assign the first as birth date and last as death date
             birth_date = date_strings[0]
             death_date = date_strings[-1]
 
@@ -353,50 +342,50 @@ def parse_date(date_str):
     except (ValueError, TypeError):
         return None
 
-def extract_death_and_birth_dates(text):
-    """
-    Extracts death and birth dates from the given text using spaCy NLP and relative keywords.
-    Returns:
-        A tuple containing the extracted death date and birth date (or None if not found).
-    """
-    death_date = None
-    birth_date = None
-
-    doc = nlp(text)
-
-    # Find the first death indicator to cut down on processing
-    death_index = -1  # If no indicator, still run full search
-    for i, sent in enumerate(doc.sents):
-        death_keywords = ["passing", "passed away", "death", "died", "rested", "passed", "at the age of"]
-        if any(keyword in sent.text.lower() for keyword in death_keywords):
-            death_index = i
-            break
-
-    for i, sent in enumerate(doc.sents):  # Process each sentence separately
-        death_keywords = ["passing", "passed away", "death", "died", "rested", "passed", "at the age of"]
-        birth_keywords = ["born", "birth", "born in"]
-
-        # Check for death dates and limit to the first event with the code.
-        if any(keyword in sent.text.lower() for keyword in death_keywords) and i == death_index:
-            for ent in sent.ents:
-                if ent.label_ == "DATE":
-                    death_date = ent.text
-                    break  # Take the first date found in the sentence
-
-        # Check for birth dates at all sections.
-        if any(keyword in sent.text.lower() for keyword in birth_keywords):
-            for ent in sent.ents:
-                if ent.label_ == "DATE":
-                    birth_date = ent.text
-                    break  # Take the first date found in the sentence
-
-    # Parse dates found in the text and format them
-    if birth_date:
-        birth_date = parse_date(birth_date)
-    if death_date:
-        death_date = parse_date(death_date)
-
-    return death_date, birth_date
+# def extract_death_and_birth_dates(text):
+#     """
+#     Extracts death and birth dates from the given text using spaCy NLP and relative keywords.
+#     Returns:
+#         A tuple containing the extracted death date and birth date (or None if not found).
+#     """
+#     death_date = None
+#     birth_date = None
+#
+#     doc = nlp(text)
+#
+#     # Find the first death indicator to cut down on processing
+#     death_index = -1  # If no indicator, still run full search
+#     for i, sent in enumerate(doc.sents):
+#         death_keywords = ["passing", "passed away", "death", "died", "rested", "passed", "at the age of"]
+#         if any(keyword in sent.text.lower() for keyword in death_keywords):
+#             death_index = i
+#             break
+#
+#     for i, sent in enumerate(doc.sents):  # Process each sentence separately
+#         death_keywords = ["passing", "passed away", "death", "died", "rested", "passed", "at the age of"]
+#         birth_keywords = ["born", "birth", "born in"]
+#
+#         # Check for death dates and limit to the first event with the code.
+#         if any(keyword in sent.text.lower() for keyword in death_keywords) and i == death_index:
+#             for ent in sent.ents:
+#                 if ent.label_ == "DATE":
+#                     death_date = ent.text
+#                     break  # Take the first date found in the sentence
+#
+#         # Check for birth dates at all sections.
+#         if any(keyword in sent.text.lower() for keyword in birth_keywords):
+#             for ent in sent.ents:
+#                 if ent.label_ == "DATE":
+#                     birth_date = ent.text
+#                     break  # Take the first date found in the sentence
+#
+#     # Parse dates found in the text and format them
+#     if birth_date:
+#         birth_date = parse_date(birth_date)
+#     if death_date:
+#         death_date = parse_date(death_date)
+#
+#     return death_date, birth_date
 
 def extract_year_from_date(date_string):
     """
@@ -533,27 +522,19 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
         funeral_home_tag = soup.find("span", class_="obit-fh")  # Example selector - adjust as needed
         funeral_home = extract_text(funeral_home_tag) if funeral_home_tag else None
 
-        # Tags - Initialize as None for now, will be managed in UI
         tags = None # Or tags = "" if you prefer empty string
 
         # Extract dates and location
         obit_dates_tag = soup.find("h2", class_="obit-dates")
 
         if obit_dates_tag:
-            # Check if the tag has any text content after removing whitespace
-            tag_content = obit_dates_tag.get_text(strip=True)  # Get text and strip whitespace
-            if tag_content:  # Check if tag_content is not empty
-                # Condition: h2.obit-dates tag IS found AND has content
-                birth_date, death_date = extract_dates(soup)  # Call extract_dates with the soup object
+            tag_content = obit_dates_tag.get_text(strip=True)
+            if tag_content:
+                birth_date, death_date = extract_dates(soup)
             else:
-                # Condition: h2.obit-dates tag IS found BUT is empty
                 birth_date, death_date = extract_birth_and_death_dates_from_obituary(content)
         else:
-            # Condition: h2.obit-dates tag IS NOT found in the soup
             birth_date, death_date = extract_birth_and_death_dates_from_obituary(content)
-
-        # Now you have 'birth_date' and 'death_date' variables set based on the condition.
-        # You can continue to use these variables in your code.
 
         city, province = extract_city_and_province(url)
 
@@ -615,13 +596,9 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
 
 def main(stop_event):
     time.sleep(15)
-    # state = load_state() <- Removed state loading
 
     session = configure_session()
 
-    processed_cities = set() # Initialize as empty set
-    visited_search_pages = set() # Initialize as empty set
-    visited_obituaries = set() # Initialize as empty set
 
     subdomains = get_city_subdomains(session)
     if not subdomains:
