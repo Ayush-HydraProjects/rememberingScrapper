@@ -107,6 +107,8 @@
     padding: 10px;
     background-color: white;
     border-top: 1px solid #ccc;
+    overflow: hidden; /* Initially hidden - important for animation */
+    transition: max-height 0.2s ease-out; /* Smooth animation for expanding/collapsing */
 }
 
 .hidden {

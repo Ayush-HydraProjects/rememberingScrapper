@@ -510,7 +510,6 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
         soup = BeautifulSoup(response.text, "html.parser")
 
         publication_date_text = get_publication_date_from_soup(soup)
-        logging.info(f"Publication Date: {publication_date_text}")  # Print to terminal
 
 
         # Extract name components
@@ -545,22 +544,16 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
             tag_content = obit_dates_tag.get_text(strip=True)  # Get text and strip whitespace
             if tag_content:  # Check if tag_content is not empty
                 # Condition: h2.obit-dates tag IS found AND has content
-                logging.info("h2.obit-dates tag found and has content, using extract_dates function")
                 birth_date, death_date = extract_dates(soup)  # Call extract_dates with the soup object
             else:
                 # Condition: h2.obit-dates tag IS found BUT is empty
-                logging.info("h2.obit-dates tag found but is empty, using extract_death_and_birth_dates function")
                 birth_date, death_date = extract_birth_and_death_dates_from_obituary(content)
         else:
             # Condition: h2.obit-dates tag IS NOT found in the soup
-            logging.info("h2.obit-dates tag not found, using extract_death_and_birth_dates function")
             birth_date, death_date = extract_birth_and_death_dates_from_obituary(content)
 
         # Now you have 'birth_date' and 'death_date' variables set based on the condition.
         # You can continue to use these variables in your code.
-
-        logging.info(f"Extracted Dates: Birth Date: {birth_date}, Death Date: {death_date}")
-
 
         city, province = extract_city_and_province(url)
 

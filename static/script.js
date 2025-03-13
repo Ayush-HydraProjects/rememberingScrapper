@@ -1,4 +1,4 @@
- /* script.js */
+/* script.js */
 
 const entriesFetchedSpan = document.getElementById("entriesFetched");
 
@@ -128,10 +128,6 @@ function applyFilters() {
     const lastName = document.getElementById("lastNameFilter").value.trim();
     const city = document.getElementById("cityFilter").value.trim();
     const province = document.getElementById("provinceFilter").value.trim();
-    // const birthDateStart = document.getElementById("birthDateStart").value.trim();
-    // const birthDateEnd = document.getElementById("birthDateEnd").value.trim();
-    // const deathDateStart = document.getElementById("deathDateStart").value.trim();
-    // const deathDateEnd = document.getElementById("deathDateEnd").value.trim();
 
     // Show loading spinner
     document.getElementById("loading-spinner").classList.remove("hidden");
@@ -144,10 +140,6 @@ function applyFilters() {
     if (lastName) params.append("lastName", lastName);
     if (city) params.append("city", city);
     if (province) params.append("province", province);
-    // if (birthDateStart) params.append("birthDateStart", birthDateStart);
-    // if (birthDateEnd) params.append("birthDateEnd", birthDateEnd);
-    // if (deathDateStart) params.append("deathDateStart", deathDateStart);
-    // if (deathDateEnd) params.append("deathDateEnd", deathDateEnd);
 
 
     fetch(`/search_obituaries?${params.toString()}`)
@@ -155,16 +147,12 @@ function applyFilters() {
         .then(data => {
             // Hide loading spinner
             document.getElementById("loading-spinner").classList.add("hidden");
-            // document.getElementById("obituaryList").classList.remove("hidden"); // No need to show/hide obituaryList anymore
-
-            // const obituaryList = document.querySelector("#obituaryList tbody"); // No longer needed
-            // obituaryList.innerHTML = ""; // Clear existing entries // No longer needed
 
             if (data.length === 0) {
                 document.getElementById("noNewEntries").classList.remove("hidden"); // Show no entries message
             } else {
                 document.getElementById("noNewEntries").classList.add("hidden"); // Hide no entries message
-                renderObituaryAccordion(data); // Render accordion with filtered data
+                renderYearAccordion(data); // Render accordion with filtered data, now YEAR accordion
             }
         })
         .catch(error => {
@@ -172,61 +160,11 @@ function applyFilters() {
             alert("Error fetching search results.");
             // Hide loading spinner on error
             document.getElementById("loading-spinner").classList.add("hidden");
-            // document.getElementById("obituaryList").classList.remove("hidden"); // No need to show/hide obituaryList anymore
         });
 }
 
 
-//
-// function refreshObituaries() {
-//     document.getElementById('loading-spinner').classList.remove('hidden');
-//     document.getElementById('obituaryList').classList.add('hidden');
-//     document.getElementById('noNewEntries').classList.add('hidden');
-//
-//
-//     fetch('/get_obituaries')
-//         .then(response => response.json())
-//         .then(data => {
-//             console.log("Obituary data received:", data)
-//             // Hide loading spinner
-//             document.getElementById('loading-spinner').classList.add('hidden');
-//             document.getElementById('obituaryList').classList.remove('hidden');
-//             const obituaryList = document.querySelector("#obituaryList tbody");
-//             obituaryList.innerHTML = "";
-//
-//
-//             if (data.length === 0) {
-//                 document.getElementById('noNewEntries').classList.remove('hidden');// Show no entries message
-//             }
-//             else {
-//                 document.getElementById('noNewEntries').classList.add('hidden');//// Hide no entries message
-//                 console.log(data)
-//                 data.forEach(obituary => {
-//                     const row = `
-//                         <tr class="hover:bg-gray-100 transition">
-//                             <td class="border px-4 py-2">${obituary.first_name || 'N/A'}</td>
-//                             <td class="border px-4 py-2">${obituary.last_name || 'N/A'}</td>
-//                             <td class="border px-4 py-2">${obituary.city || 'N/A'}</td>
-//                             <td class="border px-4 py-2">${obituary.province || 'N/A'}</td>
-//                             <td class="border px-4 py-2">${obituary.birth_date || 'N/A'}</td>
-//                             <td class="border px-4 py-2">${obituary.death_date || 'N/A'}</td>
-//                             <td class="border px-4 py-2">
-//                                 <a href="/obituary/${obituary.id}" class="text-blue-500 hover:underline">🔗 View</a>
-//                             </td>
-//                         </tr>
-//                     `;
-//                     obituaryList.innerHTML += row;
-//                 });
-//             }
-//         })
-//         .catch(error => {
-//             console.error("Error refreshing obituaries:", error)
-//             document.getElementById('loading-spinner').classList.add('hidden');
-//             document.getElementById('obituaryList').classList.remove('hidden');
-//         });
-// }
-
- function refreshObituaries() {
+function refreshObituaries() { // Modified refreshObituaries to use year accordion
     document.getElementById('loading-spinner').classList.remove('hidden');
     document.getElementById('obituaryAccordionContainer').innerHTML = ""; // Clear previous accordion
     document.getElementById('noNewEntries').classList.add('hidden');
@@ -240,7 +178,7 @@ function applyFilters() {
                 document.getElementById('noNewEntries').classList.remove('hidden');
             } else {
                 document.getElementById('noNewEntries').classList.add('hidden');
-                renderObituaryAccordion(data); // Call function to render accordion
+                renderYearAccordion(data); // Call function to render YEAR accordion
             }
         })
         .catch(error => {
@@ -249,51 +187,72 @@ function applyFilters() {
         });
 }
 
-function renderObituaryAccordion(obituaries) {
+function renderYearAccordion(obituaries) { // Renamed function to render YEAR accordion
     const accordionContainer = document.getElementById('obituaryAccordionContainer');
-    const cityGroups = groupObituariesByCity(obituaries); // Group data by city
+    const yearGroups = groupObituariesByYear(obituaries); // Group data by year (new function below)
+    const yearOrder = ["2025", "2024", "2023", "2022", "Before 2022"]; // Define year order
 
-    for (const city in cityGroups) {
-        if (cityGroups.hasOwnProperty(city)) {
-            const cityObituaries = cityGroups[city];
-            const cityAccordion = createCityAccordionSection(city, cityObituaries);
-            accordionContainer.appendChild(cityAccordion);
+    yearOrder.forEach(year => { // Use yearOrder to control the order of accordion sections
+        if (yearGroups.hasOwnProperty(year)) {
+            const yearObituaries = yearGroups[year];
+            if (yearObituaries.length > 0) { // Only create accordion if there are obituaries for the year
+                const yearAccordion = createYearAccordionSection(year, yearObituaries); // Create year accordion section (new function below)
+                accordionContainer.appendChild(yearAccordion);
+            }
         }
-    }
+    });
 }
 
 
-function groupObituariesByCity(obituaries) {
-    const cityGroups = {};
+function groupObituariesByYear(obituaries) { // NEW function to group by YEAR
+    const yearGroups = { // Initialize with all year groups to maintain order and include empty groups
+        "2025": [],
+        "2024": [],
+        "2023": [],
+        "2022": [],
+        "Before 2022": []
+    };
+
     obituaries.forEach(obituary => {
-        const city = obituary.city || 'Unknown City'; // Use 'Unknown City' if city is null/undefined
-        if (!cityGroups[city]) {
-            cityGroups[city] = [];
+        let publicationYear = 'Unknown Year'; // Default year if extraction fails
+        if (obituary.publication_date) {
+            const year = new Date(obituary.publication_date).getFullYear();
+            if (!isNaN(year)) { // Check if year is a valid number
+                publicationYear = String(year); // Convert year to string for grouping
+            } else {
+                publicationYear = 'Unknown Year';
+            }
         }
-        cityGroups[city].push(obituary);
+
+        if (publicationYear === '2025') yearGroups["2025"].push(obituary);
+        else if (publicationYear === '2024') yearGroups["2024"].push(obituary);
+        else if (publicationYear === '2023') yearGroups["2023"].push(obituary);
+        else if (publicationYear === '2022') yearGroups["2022"].push(obituary);
+        else if (publicationYear !== 'Unknown Year' && parseInt(publicationYear) < 2022) yearGroups["Before 2022"].push(obituary); // Group years before 2022
+        // else yearGroups["Unknown Year"].push(obituary); // Optional: Handle 'Unknown Year' if needed, or just ignore
     });
-    return cityGroups;
+    return yearGroups;
 }
 
 
-function createCityAccordionSection(city, obituaries) {
-    const citySection = document.createElement('div');
-    citySection.classList.add('accordion-section');
+function createYearAccordionSection(year, obituaries) { // NEW function to create YEAR accordion section
+    const yearSection = document.createElement('div');
+    yearSection.classList.add('accordion-section'); // You can keep 'accordion-section' class for styling
 
-    const cityHeading = document.createElement('button');
-    cityHeading.classList.add('accordion-button');
-    cityHeading.textContent = city;
-    cityHeading.addEventListener('click', () => {
-        cityContent.classList.toggle('hidden');
+    const yearHeading = document.createElement('button');
+    yearHeading.classList.add('accordion-button'); // Keep 'accordion-button' class for styling
+    yearHeading.textContent = year; // Set the year as the button text
+    yearHeading.addEventListener('click', () => { // Accordion toggle functionality (same as before)
+        yearContent.classList.toggle('hidden');
     });
-    citySection.appendChild(cityHeading);
+    yearSection.appendChild(yearHeading);
 
-    const cityContent = document.createElement('div');
-    cityContent.classList.add('accordion-content', 'hidden');
+    const yearContent = document.createElement('div');
+    yearContent.classList.add('accordion-content', 'hidden'); // Keep 'accordion-content' and 'hidden' classes
 
     // Create the table
     const obituaryTable = document.createElement('table');
-    obituaryTable.classList.add('obituary-table'); // Add class for table styling
+    obituaryTable.classList.add('obituary-table'); // Keep 'obituary-table' class for table styling
 
     // Create table header (<thead>)
     const tableHeader = document.createElement('thead');
@@ -301,14 +260,24 @@ function createCityAccordionSection(city, obituaries) {
         <tr>
             <th class="border px-4 py-2">First Name</th>
             <th class="border px-4 py-2">Last Name</th>
-            <th class="border px-4 py-2">City</th>
-            <th class="border px-4 py-2">Province</th>
+            <th class="border px-4 py-2">City</th>  <!-- Keep City and Province if you want to display them -->
+            <th class="border px-4 py-2">Province</th> <!-- Keep City and Province if you want to display them -->
             <th class="border px-4 py-2">Birth Date</th>
             <th class="border px-4 py-2">Death Date</th>
             <th class="border px-4 py-2">View</th>
         </tr>
     `;
     obituaryTable.appendChild(tableHeader);
+
+     // Create a paragraph for "No obituaries in this year" if obituaries array is empty
+    if (!obituaries || obituaries.length === 0) {
+        const noObituariesPara = document.createElement('p');
+        noObituariesPara.textContent = "No obituaries in this year.";
+        yearContent.appendChild(noObituariesPara);
+        yearSection.appendChild(yearContent);
+        return yearSection; // Return early if no obituaries
+    }
+
 
     // Create table body (<tbody>)
     const tableBody = document.createElement('tbody');
@@ -318,8 +287,8 @@ function createCityAccordionSection(city, obituaries) {
         row.innerHTML = `
             <td class="border px-4 py-2">${obituary.first_name || 'N/A'}</td>
             <td class="border px-4 py-2">${obituary.last_name || 'N/A'}</td>
-            <td class="border px-4 py-2">${obituary.city || 'N/A'}</td>
-            <td class="border px-4 py-2">${obituary.province || 'N/A'}</td>
+            <td class="border px-4 py-2">${obituary.city || 'N/A'}</td> <!-- Keep City and Province if you want to display them -->
+            <td class="border px-4 py-2">${obituary.province || 'N/A'}</td> <!-- Keep City and Province if you want to display them -->
             <td class="border px-4 py-2">${obituary.birth_date || 'N/A'}</td>
             <td class="border px-4 py-2">${obituary.death_date || 'N/A'}</td>
             <td class="border px-4 py-2">
@@ -329,10 +298,10 @@ function createCityAccordionSection(city, obituaries) {
         tableBody.appendChild(row);
     });
     obituaryTable.appendChild(tableBody);
-    cityContent.appendChild(obituaryTable); // Append the table to the content div
-    citySection.appendChild(cityContent);
+    yearContent.appendChild(obituaryTable); // Append the table to the content div
+    yearSection.appendChild(yearContent);
 
-    return citySection;
+    return yearSection;
 }
 
 function updateLastScrapeTimeDisplay(timeString) { // NEW function to update last scrape time
@@ -344,14 +313,3 @@ function updateLastScrapeTimeDisplay(timeString) { // NEW function to update las
         lastScrapeTimeSpan.textContent = "Never"; // Or "N/A", or leave it blank, as you prefer for no time yet
     }
 }
-
-// function updateDashboardSummary() {
-//     fetch('/dashboard_summary')
-//         .then(response => response.json())
-//         .then(data => {
-//             document.getElementById('alumniCount').textContent = data.total_alumni;
-//             document.getElementById('entriesFetched').textContent = data.total_obituaries;
-//             document.getElementById('citiesFetched').textContent = data.total_cities;
-//         })
-//         .catch(error => console.error("Error fetching dashboard summary:", error));
-// }

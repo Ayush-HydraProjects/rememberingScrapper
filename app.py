@@ -2,12 +2,13 @@
 import os
 from flask import Flask, render_template, jsonify, request
 from flask_migrate import Migrate
+from sqlalchemy import extract, func, text
 
 import logging
 from flask_sqlalchemy import SQLAlchemy
 from models import Obituary, DistinctObituary, db
 
-import csv
+import csv, json  # Import json module (already present, just confirming)
 from flask import send_file
 import threading  # Import threading
 import time  # For simple delay in stop function
@@ -27,7 +28,7 @@ from scrapper import main
 
 # --- Global variables to track scraper state ---
 scrape_thread = None  # To hold the scraping thread
-stop_event = threading.Event()  # Use threading.Event instead of boolean flag # <---- CHANGED
+stop_event = threading.Event()  # Use threading.Event instead of boolean flag
 last_scrape_time = None
 
 # --- Flask Routes ---
@@ -93,6 +94,7 @@ def search_obituaries():
             'province': obit.province,
             'birth_date': obit.birth_date,
             'death_date': obit.death_date,
+            'publication_date': obit.publication_date, # <---- Make sure publication_date is included
             'is_alumni': obit.is_alumni,
         } for obit in obituaries]
 
@@ -103,7 +105,7 @@ def search_obituaries():
 def get_obituaries():
     """Route to fetch distinct alumni obituaries data, ordered by city and publication date."""
     with app.app_context():
-        obituaries = DistinctObituary.query.order_by(DistinctObituary.city.asc(), DistinctObituary.publication_date.desc()).limit(100).all()
+        obituaries = DistinctObituary.query.order_by(DistinctObituary.publication_date.desc()).all()
         obituary_list = [{
             'id': obit.id,
             'name': obit.name,
@@ -114,10 +116,68 @@ def get_obituaries():
             'province': obit.province,
             'birth_date': obit.birth_date,
             'death_date': obit.death_date,
-            'publication_date': obit.publication_date,
+            'publication_date': obit.publication_date, # <---- Make sure publication_date is included
             'is_alumni': obit.is_alumni,
         } for obit in obituaries]
         return jsonify(obituary_list)
+
+
+# ---------------------- NEW API ENDPOINT FOR YEAR-GROUPED DATA (NOT USED BY CURRENT FRONTEND, BUT KEPT) ----------------------
+@app.route('/api/publications/grouped-by-year')
+def get_publications_by_year_endpoint():
+    """API endpoint to get publications grouped by year."""
+    publications_by_year = get_publications_grouped_by_year()
+    if publications_by_year:
+        return jsonify(publications_by_year)
+    else:
+        return jsonify({"error": "Failed to fetch publications by year"}), 500
+
+
+def get_publications_grouped_by_year():
+    """
++   Fetches publications from the database, grouped by publication year,
++   and categorized into year groups (2025, 2024, 2023, 2022, <2022).
++   """
+    try:
+        result = (
+            db.session.query(
+                extract('year', DistinctObituary.publication_date).label('publication_year'),
+                func.json_agg(func.json_build_object(
+                    'id', DistinctObituary.id,
+                    'name', DistinctObituary.name,
+                    'first_name', DistinctObituary.first_name,
+                    'last_name', DistinctObituary.last_name,
+                    'obituary_url', DistinctObituary.obituary_url,
+                    'city', DistinctObituary.city,
+                    'province', DistinctObituary.province,
+                    'birth_date', DistinctObituary.birth_date,
+                    'death_date', DistinctObituary.death_date,
+                    'publication_date', DistinctObituary.publication_date,
+                    'is_alumni', DistinctObituary.is_alumni
+                )).label('publications_in_year')
+            )
+            .group_by(extract('year', DistinctObituary.publication_date))
+            .order_by(text('publication_year DESC'))
+            .all()
+        )
+
+        grouped_data = {
+            "2025": [], "2024": [], "2023": [], "2022": [], "Before 2022": []
+        }
+
+        for row in result:
+            year = row.publication_year
+            year_str = str(int(year)) if year else None # Convert year to string for dictionary key
+            if year_str in grouped_data: # Check if year_str is a key in grouped_data
+                grouped_data[year_str] = list(row.publications_in_year) if row.publications_in_year else [] # Ensure it's a list
+            elif year and year < 2022:
+                grouped_data["Before 2022"].extend(list(row.publications_in_year) if row.publications_in_year else []) # Extend for <2022 group
+
+        return grouped_data
+    except Exception as e:
+        print(f"Database error fetching publications by year: {e}")
+        return None
+# ---------------------- END OF NEW API ENDPOINT ----------------------
 
 
 @app.route('/start_scrape', methods=['POST'])
@@ -125,17 +185,17 @@ def start_scrape():
     """Route to start the scraper in a background thread."""
     global scrape_thread, stop_event, last_scrape_time
 
-    if not stop_event.is_set(): # Check event status instead of boolean flag # <---- CHANGED
+    if not stop_event.is_set(): # Check event status instead of boolean flag
         return jsonify({'message': 'Scraping is already running!'}), 400
 
-    stop_event.clear()  # Clear the stop event to start scraping # <---- CHANGED
+    stop_event.clear()  # Clear the stop event to start scraping
 
     # Overwrite CSV before starting the scraper
     csv_file_path = "obituaries_data.csv"
     if os.path.exists(csv_file_path):
         open(csv_file_path, 'w').close()  # Truncate the file (overwrite)
 
-    scrape_thread = threading.Thread(target=run_scraper_background, args=(stop_event,)) # Pass stop_event as argument # <---- CHANGED
+    scrape_thread = threading.Thread(target=run_scraper_background, args=(stop_event,)) # Pass stop_event as argument
     scrape_thread.start()
 
     last_scrape_time = datetime.now()
@@ -152,10 +212,10 @@ def stop_scrape():
     """Route to stop the scraper (set event to stop gracefully)."""
     global stop_event, last_scrape_time
 
-    if stop_event.is_set(): # Check event status instead of boolean flag # <---- CHANGED
+    if stop_event.is_set(): # Check event status instead of boolean flag
         return jsonify({'message': 'Scraping is not currently running!'}), 400
 
-    stop_event.set()  # Set the stop event to signal scraper to stop # <---- CHANGED
+    stop_event.set()  # Set the stop event to signal scraper to stop
     time.sleep(2)  # Keep delay for testing, can remove later
 
     last_scrape_time = datetime.now()
@@ -178,7 +238,7 @@ def run_scraper_background(stop_event):
     """Function to run the scraper in the background thread."""
     logging.info("Scraper background thread started.")
     try:
-        main(stop_event)  # Pass stop_event to main() # <---- CHANGED
+        main(stop_event)  # Pass stop_event to main()
     except Exception as e:
         logging.error(f"Scraper background thread encountered an error: {e}")
     finally:
@@ -210,7 +270,7 @@ def obituary_detail(pk):
 def generate_csv():
     """Helper function to generate a fresh CSV file from the database."""
     with app.app_context():
-        obituaries = DistinctObituary.query.all()
+        obituaries = DistinctObituary.query.order_by(DistinctObituary.publication_date.desc()).all()
 
         if not obituaries:
             return None  # No data available
