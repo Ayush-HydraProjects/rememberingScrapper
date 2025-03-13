@@ -1,27 +1,6 @@
 /* styles.css */
 
 /* You can add any custom styles here that are not covered by Tailwind CSS */
-/* For example, if you need to override any Tailwind defaults or add unique styling */
-
-/* Example: Custom scrollbar styling (if needed) */
-/*
-::-webkit-scrollbar {
-    width: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: #f1f1f1;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-*/
 #obituaryList {
     max-height: 70vh;
     overflow-y: auto;
@@ -86,4 +65,78 @@
         /* You can add more styles to further indicate disabled state if needed */
     }
 
+
+.accordion-button {
+    background-color: #f0f0f0;
+    color: #444;
+    cursor: pointer;
+    padding: 10px;
+    width: 100%;
+    text-align: left;
+    outline: none;
+    transition: 0.4s;
+    font-weight: bold;
+}
+
+.accordion-button:hover {
+    background-color: #ddd;
+}
+
+.accordion-content {
+    padding: 10px;
+    background-color: white;
+    border-top: 1px solid #ccc;
+    overflow: hidden; /* Initially hidden - important for animation */
+    transition: max-height 0.2s ease-out; /* Smooth animation for expanding/collapsing */
+}
+
+.hidden {
+    display: none;
+}
+
+.obituary-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.obituary-list-item {
+    padding: 5px 0;
+    border-bottom: 1px dotted #eee;
+}
+
+.obituary-list-item:last-child {
+    border-bottom: none;
+}
+
+.obituary-list-item a {
+    text-decoration: none;
+    color: #007bff; /* Example link color */
+}
+
+.obituary-list-item a:hover {
+    text-decoration: underline;
+}
+
+.obituary-table {
+    width: 100%;
+    border-collapse: collapse; /* For single-line borders */
+    margin-bottom: 10px; /* Add some space below the table */
+}
+
+.obituary-table th, .obituary-table td {
+    border: 1px solid #ddd; /* Light grey borders for table cells */
+    padding: 8px;
+    text-align: left;
+}
+
+.obituary-table th {
+    background-color: #f2f2f2; /* Light grey background for header cells */
+    font-weight: bold;
+}
+
+/* Optional: Style for table rows on hover (if you want it consistent with previous table) */
+.obituary-table tbody tr.hover\:bg-gray-100:hover { /* Note: Escaping colon in CSS class */
+    background-color: #f7f7f7; /* Light grey hover background */
+}
 /* Add more custom styles as needed */

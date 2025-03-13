@@ -128,17 +128,17 @@
             <div class="bg-blue-100 p-4 rounded-lg shadow-sm border-b-4 border-blue-400">
                 <p class="text-gray-600 text-sm">Total Alumni Obituaries</p>
                 <!--                <p class="text-2xl font-bold text-gray-800" id="alumniCount">{{ total_alumni }}</p>-->
-                <p class="text-2xl font-bold text-gray-800" id="alumniCount">78</p>
+                <p class="text-2xl font-bold text-gray-800" id="alumniCount">1668</p>
             </div>
             <div class="bg-green-100 p-4 rounded-lg shadow-sm border-b-4 border-green-400">
                 <p class="text-gray-600 text-sm">Total Obituaries Processed</p>
                 <!--                <p class="text-2xl font-bold text-gray-800" id="entriesFetched">{{ total_obituaries }}</p>-->
-                <p class="text-2xl font-bold text-gray-800" id="entriesFetched">294</p>
+                <p class="text-2xl font-bold text-gray-800" id="entriesFetched">2612</p>
             </div>
             <div class="bg-yellow-100 p-4 rounded-lg shadow-sm border-b-4 border-yellow-400">
                 <p class="text-gray-600 text-sm">Total Cities Processed</p>
                 <!--                <p class="text-2xl font-bold text-gray-800" id="citiesFetched">{{ total_cities }}</p>-->
-                <p class="text-2xl font-bold text-gray-800" id="citiesFetched">6</p>
+                <p class="text-2xl font-bold text-gray-800" id="citiesFetched">109</p>
             </div>
         </div>
         <!-- Scraper Controls -->
@@ -155,6 +155,7 @@
                 </button>
             </div>
             <p class="mt-2 text-gray-500" id="scrapingStatus">Not running</p>
+            <p class="mt-2 text-gray-500">Last Scrape Time: <span id="lastScrapeTimeDisplay">Never</span></p>
         </div>
 
 
@@ -167,29 +168,15 @@
                     🔄 Refresh
                 </button>
             </div>
-            <div id="obituaryList" style="max-height: 70vh; overflow-y: auto;">
+            <div id="loading-spinner" class="hidden flex">
+                <i class="fas fa-spinner fa-spin fa-2x"></i><p class="p-2 text-gray-500">Loading Obituaries...</p>
+            </div>
+            <div id="noNewEntries" class="hidden">
+            <p class="p-2 text-gray-500"> No new entries found.</p>
+            </div>
 
-                    <table class="min-w-full border border-gray-300 table-fixed">
-                        <thead class="bg-gray-200 sticky top-0">
-                        <tr>
-                            <th class="border px-4 py-2 text-left w-1/6">First Name</th>
-                            <th class="border px-4 py-2 text-left w-1/6">Last Name</th>
-                            <th class="border px-4 py-2 text-left w-1/6">City</th>
-                            <th class="border px-4 py-2 text-left w-1/6">Province</th>
-                            <th class="border px-4 py-2 text-left w-1/6">Birth Date</th>
-                            <th class="border px-4 py-2 text-left w-1/6">Death Date</th>
-                            <th class="border px-4 py-2 text-left w-1/6">Obituary URL</th>
-                        </tr>
-                        </thead>
-                        <tbody class="obituary-table-body overflow-x-auto">
-                        </tbody>
-                    </table>
-                <div id="loading-spinner" class="text-center hidden p-6">
-                    <i class="fas fa-spinner fa-spin fa-2x"></i>
-                    <p>Loading Obituaries...</p>
-                </div>
-                <p class="text-center py-4 text-gray-500 hidden" id="noNewEntries">No new entries found based on
-                    filters.</p>
+            <div id="obituaryAccordionContainer">
+            <!-- Accordion will be generated here by JavaScript -->
             </div>
         </div>
     </main>

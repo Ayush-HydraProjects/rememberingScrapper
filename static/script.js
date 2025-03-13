@@ -1,4 +1,4 @@
- /* script.js */
+/* script.js */
 
 const entriesFetchedSpan = document.getElementById("entriesFetched");
 
@@ -30,6 +30,9 @@ function startScraping() {
             alert(data.message);
             scrapingActive = data.scraping_active;  // Use server's response
             updateScraperUI();
+            if (data.last_scrape_time) { // Update last scrape time after start
+                updateLastScrapeTimeDisplay(data.last_scrape_time);
+            }
         })
         .catch(error => {
             console.error("Error starting scraping:", error);
@@ -59,6 +62,9 @@ function stopScraping() {
             alert(data.message);
             scrapingActive = data.scraping_active;  // Use server's response
             updateScraperUI();
+            if (data.last_scrape_time) { // Update last scrape time after stop
+                updateLastScrapeTimeDisplay(data.last_scrape_time);
+            }
         })
         .catch(error => {
             console.error("Error stopping scraping:", error);
@@ -72,6 +78,9 @@ function updateScrapingStatusDisplay() {
         .then(data => {
             scrapingActive = data.scraping_active; // Update scrapingActive from server status
             updateScraperUI(); // Call updateUI function
+            if (data.last_scrape_time) { // Update last scrape time on status update
+                updateLastScrapeTimeDisplay(data.last_scrape_time);
+            }
         })
         .catch(error => {
             console.error("Error fetching scraping status:", error);
@@ -106,8 +115,6 @@ document.addEventListener('DOMContentLoaded', function () {
     updateScrapingStatusDisplay(); // Initial status update on load
     setInterval(updateScrapingStatusDisplay, 20000);
 
-
-
     document.getElementById("filterForm").addEventListener("submit", function (event) {
         event.preventDefault();
         applyFilters();
@@ -121,14 +128,10 @@ function applyFilters() {
     const lastName = document.getElementById("lastNameFilter").value.trim();
     const city = document.getElementById("cityFilter").value.trim();
     const province = document.getElementById("provinceFilter").value.trim();
-    // const birthDateStart = document.getElementById("birthDateStart").value.trim();
-    // const birthDateEnd = document.getElementById("birthDateEnd").value.trim();
-    // const deathDateStart = document.getElementById("deathDateStart").value.trim();
-    // const deathDateEnd = document.getElementById("deathDateEnd").value.trim();
 
     // Show loading spinner
     document.getElementById("loading-spinner").classList.remove("hidden");
-    document.getElementById("obituaryList").classList.add("hidden");
+    document.getElementById("obituaryAccordionContainer").innerHTML = ""; // Clear accordion container instead of obituaryList
     document.getElementById("noNewEntries").classList.add("hidden");
 
     // Build query parameters dynamically
@@ -137,10 +140,6 @@ function applyFilters() {
     if (lastName) params.append("lastName", lastName);
     if (city) params.append("city", city);
     if (province) params.append("province", province);
-    // if (birthDateStart) params.append("birthDateStart", birthDateStart);
-    // if (birthDateEnd) params.append("birthDateEnd", birthDateEnd);
-    // if (deathDateStart) params.append("deathDateStart", deathDateStart);
-    // if (deathDateEnd) params.append("deathDateEnd", deathDateEnd);
 
 
     fetch(`/search_obituaries?${params.toString()}`)
@@ -148,31 +147,12 @@ function applyFilters() {
         .then(data => {
             // Hide loading spinner
             document.getElementById("loading-spinner").classList.add("hidden");
-            document.getElementById("obituaryList").classList.remove("hidden");
-
-            const obituaryList = document.querySelector("#obituaryList tbody");
-            obituaryList.innerHTML = ""; // Clear existing entries
 
             if (data.length === 0) {
                 document.getElementById("noNewEntries").classList.remove("hidden"); // Show no entries message
             } else {
                 document.getElementById("noNewEntries").classList.add("hidden"); // Hide no entries message
-                data.forEach(obituary => {
-                    const row = `
-                        <tr class="hover:bg-gray-100 transition">
-                            <td class="border px-4 py-2">${obituary.first_name || "N/A"}</td>
-                            <td class="border px-4 py-2">${obituary.last_name || "N/A"}</td>
-                            <td class="border px-4 py-2">${obituary.city || "N/A"}</td>
-                            <td class="border px-4 py-2">${obituary.province || "N/A"}</td>
-                            <td class="border px-4 py-2">${obituary.birth_date || "N/A"}</td>
-                            <td class="border px-4 py-2">${obituary.death_date || "N/A"}</td>
-                            <td class="border px-4 py-2">
-                                <a href="/obituary/${obituary.id}" class="text-blue-500 hover:underline">🔗 View</a>
-                            </td>
-                        </tr>
-                    `;
-                    obituaryList.innerHTML += row;
-                });
+                renderYearAccordion(data); // Render accordion with filtered data, now YEAR accordion
             }
         })
         .catch(error => {
@@ -180,67 +160,156 @@ function applyFilters() {
             alert("Error fetching search results.");
             // Hide loading spinner on error
             document.getElementById("loading-spinner").classList.add("hidden");
-            document.getElementById("obituaryList").classList.remove("hidden");
         });
 }
 
 
-
-function refreshObituaries() {
+function refreshObituaries() { // Modified refreshObituaries to use year accordion
     document.getElementById('loading-spinner').classList.remove('hidden');
-    document.getElementById('obituaryList').classList.add('hidden');
+    document.getElementById('obituaryAccordionContainer').innerHTML = ""; // Clear previous accordion
     document.getElementById('noNewEntries').classList.add('hidden');
-
 
     fetch('/get_obituaries')
         .then(response => response.json())
         .then(data => {
-            console.log("Obituary data received:", data)
-            // Hide loading spinner
             document.getElementById('loading-spinner').classList.add('hidden');
-            document.getElementById('obituaryList').classList.remove('hidden');
-            const obituaryList = document.querySelector("#obituaryList tbody");
-            obituaryList.innerHTML = "";
-
 
             if (data.length === 0) {
-                document.getElementById('noNewEntries').classList.remove('hidden');// Show no entries message
-            }
-            else {
-                document.getElementById('noNewEntries').classList.add('hidden');//// Hide no entries message
-                console.log(data)
-                data.forEach(obituary => {
-                    const row = `
-                        <tr class="hover:bg-gray-100 transition">
-                            <td class="border px-4 py-2">${obituary.first_name || 'N/A'}</td>
-                            <td class="border px-4 py-2">${obituary.last_name || 'N/A'}</td>
-                            <td class="border px-4 py-2">${obituary.city || 'N/A'}</td>
-                            <td class="border px-4 py-2">${obituary.province || 'N/A'}</td>
-                            <td class="border px-4 py-2">${obituary.birth_date || 'N/A'}</td>
-                            <td class="border px-4 py-2">${obituary.death_date || 'N/A'}</td>
-                            <td class="border px-4 py-2">
-                                <a href="/obituary/${obituary.id}" class="text-blue-500 hover:underline">🔗 View</a>
-                            </td>
-                        </tr>
-                    `;
-                    obituaryList.innerHTML += row;
-                });
+                document.getElementById('noNewEntries').classList.remove('hidden');
+            } else {
+                document.getElementById('noNewEntries').classList.add('hidden');
+                renderYearAccordion(data); // Call function to render YEAR accordion
             }
         })
         .catch(error => {
-            console.error("Error refreshing obituaries:", error)
+            console.error("Error refreshing obituaries:", error);
             document.getElementById('loading-spinner').classList.add('hidden');
-            document.getElementById('obituaryList').classList.remove('hidden');
         });
 }
 
-// function updateDashboardSummary() {
-//     fetch('/dashboard_summary')
-//         .then(response => response.json())
-//         .then(data => {
-//             document.getElementById('alumniCount').textContent = data.total_alumni;
-//             document.getElementById('entriesFetched').textContent = data.total_obituaries;
-//             document.getElementById('citiesFetched').textContent = data.total_cities;
-//         })
-//         .catch(error => console.error("Error fetching dashboard summary:", error));
-// }
+function renderYearAccordion(obituaries) { // Renamed function to render YEAR accordion
+    const accordionContainer = document.getElementById('obituaryAccordionContainer');
+    const yearGroups = groupObituariesByYear(obituaries); // Group data by year (new function below)
+    const yearOrder = ["2025", "2024", "2023", "2022", "Before 2022"]; // Define year order
+
+    yearOrder.forEach(year => { // Use yearOrder to control the order of accordion sections
+        if (yearGroups.hasOwnProperty(year)) {
+            const yearObituaries = yearGroups[year];
+            if (yearObituaries.length > 0) { // Only create accordion if there are obituaries for the year
+                const yearAccordion = createYearAccordionSection(year, yearObituaries); // Create year accordion section (new function below)
+                accordionContainer.appendChild(yearAccordion);
+            }
+        }
+    });
+}
+
+
+function groupObituariesByYear(obituaries) { // NEW function to group by YEAR
+    const yearGroups = { // Initialize with all year groups to maintain order and include empty groups
+        "2025": [],
+        "2024": [],
+        "2023": [],
+        "2022": [],
+        "Before 2022": []
+    };
+
+    obituaries.forEach(obituary => {
+        let publicationYear = 'Unknown Year'; // Default year if extraction fails
+        if (obituary.publication_date) {
+            const year = new Date(obituary.publication_date).getFullYear();
+            if (!isNaN(year)) { // Check if year is a valid number
+                publicationYear = String(year); // Convert year to string for grouping
+            } else {
+                publicationYear = 'Unknown Year';
+            }
+        }
+
+        if (publicationYear === '2025') yearGroups["2025"].push(obituary);
+        else if (publicationYear === '2024') yearGroups["2024"].push(obituary);
+        else if (publicationYear === '2023') yearGroups["2023"].push(obituary);
+        else if (publicationYear === '2022') yearGroups["2022"].push(obituary);
+        else if (publicationYear !== 'Unknown Year' && parseInt(publicationYear) < 2022) yearGroups["Before 2022"].push(obituary); // Group years before 2022
+        // else yearGroups["Unknown Year"].push(obituary); // Optional: Handle 'Unknown Year' if needed, or just ignore
+    });
+    return yearGroups;
+}
+
+
+function createYearAccordionSection(year, obituaries) { // NEW function to create YEAR accordion section
+    const yearSection = document.createElement('div');
+    yearSection.classList.add('accordion-section'); // You can keep 'accordion-section' class for styling
+
+    const yearHeading = document.createElement('button');
+    yearHeading.classList.add('accordion-button'); // Keep 'accordion-button' class for styling
+    yearHeading.textContent = year; // Set the year as the button text
+    yearHeading.addEventListener('click', () => { // Accordion toggle functionality (same as before)
+        yearContent.classList.toggle('hidden');
+    });
+    yearSection.appendChild(yearHeading);
+
+    const yearContent = document.createElement('div');
+    yearContent.classList.add('accordion-content', 'hidden'); // Keep 'accordion-content' and 'hidden' classes
+
+    // Create the table
+    const obituaryTable = document.createElement('table');
+    obituaryTable.classList.add('obituary-table'); // Keep 'obituary-table' class for table styling
+
+    // Create table header (<thead>)
+    const tableHeader = document.createElement('thead');
+    tableHeader.innerHTML = `
+        <tr>
+            <th class="border px-4 py-2">First Name</th>
+            <th class="border px-4 py-2">Last Name</th>
+            <th class="border px-4 py-2">City</th>  <!-- Keep City and Province if you want to display them -->
+            <th class="border px-4 py-2">Province</th> <!-- Keep City and Province if you want to display them -->
+            <th class="border px-4 py-2">Birth Date</th>
+            <th class="border px-4 py-2">Death Date</th>
+            <th class="border px-4 py-2">View</th>
+        </tr>
+    `;
+    obituaryTable.appendChild(tableHeader);
+
+     // Create a paragraph for "No obituaries in this year" if obituaries array is empty
+    if (!obituaries || obituaries.length === 0) {
+        const noObituariesPara = document.createElement('p');
+        noObituariesPara.textContent = "No obituaries in this year.";
+        yearContent.appendChild(noObituariesPara);
+        yearSection.appendChild(yearContent);
+        return yearSection; // Return early if no obituaries
+    }
+
+
+    // Create table body (<tbody>)
+    const tableBody = document.createElement('tbody');
+    obituaries.forEach(obituary => {
+        const row = document.createElement('tr');
+        row.classList.add("hover:bg-gray-100", "transition"); // Optional row styling
+        row.innerHTML = `
+            <td class="border px-4 py-2">${obituary.first_name || 'N/A'}</td>
+            <td class="border px-4 py-2">${obituary.last_name || 'N/A'}</td>
+            <td class="border px-4 py-2">${obituary.city || 'N/A'}</td> <!-- Keep City and Province if you want to display them -->
+            <td class="border px-4 py-2">${obituary.province || 'N/A'}</td> <!-- Keep City and Province if you want to display them -->
+            <td class="border px-4 py-2">${obituary.birth_date || 'N/A'}</td>
+            <td class="border px-4 py-2">${obituary.death_date || 'N/A'}</td>
+            <td class="border px-4 py-2">
+                <a href="/obituary/${obituary.id}" class="text-blue-500 hover:underline">🔗 View</a>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+    obituaryTable.appendChild(tableBody);
+    yearContent.appendChild(obituaryTable); // Append the table to the content div
+    yearSection.appendChild(yearContent);
+
+    return yearSection;
+}
+
+function updateLastScrapeTimeDisplay(timeString) { // NEW function to update last scrape time
+    const lastScrapeTimeSpan = document.getElementById("lastScrapeTimeDisplay");
+    if (timeString) {
+        const formattedTime = new Date(timeString).toLocaleString(); // Format the ISO string to local date and time
+        lastScrapeTimeSpan.textContent = formattedTime;
+    } else {
+        lastScrapeTimeSpan.textContent = "Never"; // Or "N/A", or leave it blank, as you prefer for no time yet
+    }
+}
