@@ -191,13 +191,17 @@ function renderYearAccordion(obituaries) { // Renamed function to render YEAR ac
     const accordionContainer = document.getElementById('obituaryAccordionContainer');
     const yearGroups = groupObituariesByYear(obituaries); // Group data by year (new function below)
     const yearOrder = ["2025", "2024", "2023", "2022", "Before 2022"]; // Define year order
+    let firstAccordionSection = true; // Flag to track the first accordion
 
     yearOrder.forEach(year => { // Use yearOrder to control the order of accordion sections
         if (yearGroups.hasOwnProperty(year)) {
             const yearObituaries = yearGroups[year];
             if (yearObituaries.length > 0) { // Only create accordion if there are obituaries for the year
-                const yearAccordion = createYearAccordionSection(year, yearObituaries); // Create year accordion section (new function below)
+                const yearAccordion = createYearAccordionSection(year, yearObituaries, firstAccordionSection); // Create year accordion section (new function below), pass firstAccordionSection
                 accordionContainer.appendChild(yearAccordion);
+                if (firstAccordionSection) {
+                    firstAccordionSection = false; // Set flag to false after creating the first section
+                }
             }
         }
     });
@@ -235,7 +239,7 @@ function groupObituariesByYear(obituaries) { // NEW function to group by YEAR
 }
 
 
-function createYearAccordionSection(year, obituaries) { // NEW function to create YEAR accordion section
+function createYearAccordionSection(year, obituaries, isFirstSection) { // NEW function to create YEAR accordion section, added isFirstSection parameter
     const yearSection = document.createElement('div');
     yearSection.classList.add('accordion-section'); // You can keep 'accordion-section' class for styling
 
@@ -244,11 +248,15 @@ function createYearAccordionSection(year, obituaries) { // NEW function to creat
     yearHeading.textContent = year; // Set the year as the button text
     yearHeading.addEventListener('click', () => { // Accordion toggle functionality (same as before)
         yearContent.classList.toggle('hidden');
+        yearHeading.classList.toggle('active'); // Toggle active class on header
     });
     yearSection.appendChild(yearHeading);
 
     const yearContent = document.createElement('div');
-    yearContent.classList.add('accordion-content', 'hidden'); // Keep 'accordion-content' and 'hidden' classes
+    yearContent.classList.add('accordion-content'); // Keep 'accordion-content' class
+    if (!isFirstSection) { // Add 'hidden' class only if it's NOT the first section
+        yearContent.classList.add('hidden');
+    }
 
     // Create the table
     const obituaryTable = document.createElement('table');
@@ -300,6 +308,12 @@ function createYearAccordionSection(year, obituaries) { // NEW function to creat
     obituaryTable.appendChild(tableBody);
     yearContent.appendChild(obituaryTable); // Append the table to the content div
     yearSection.appendChild(yearContent);
+
+    if (isFirstSection) { // If it's the first section, set max-height to open it
+        yearHeading.classList.add('active'); // Add active class to the first header
+        // yearContent.style.maxHeight = yearContent.scrollHeight + "px"; // Expand the first content
+    }
+
 
     return yearSection;
 }

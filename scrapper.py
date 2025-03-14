@@ -453,13 +453,15 @@ def extract_text(tag):
 
 def get_publication_date_from_soup(soup):
     """
-    Extracts only the date part from the publication line in the BeautifulSoup object.
+    Extracts ONLY the date part from the publication line in the BeautifulSoup object,
+    ignoring all other text content in the line.  Relies on date parsing to isolate the date.
 
     Args:
         soup: BeautifulSoup object of the obituary page.
 
     Returns:
-        The publication date string, or None if not found or date extraction fails.
+        The publication date string in 'Month DD, YYYY' format if a valid date is found,
+        or None if no valid date is extracted.
     """
     publication_date = None
     published_div = soup.find('div', class_='details-published')
@@ -468,17 +470,26 @@ def get_publication_date_from_soup(soup):
         if p_tag:
             text_content = p_tag.text.strip()
             prefixes = ["Published online ", "Published on "]
-            extracted_date = None
+            date_string_to_parse = None
+
             for prefix in prefixes:
                 if text_content.startswith(prefix):
-                    extracted_date = text_content[len(prefix):].strip()
-                    break # Stop after finding the first matching prefix
-            if extracted_date:
-                publication_date = extracted_date
-            else:
-                logging.warning(f"Publication date prefix not found in: '{text_content}'")
-                publication_date = text_content # Or publication_date = None, or handle as needed
+                    date_string_to_parse = text_content[len(prefix):].strip()
+                    break
+            if date_string_to_parse is None:
+                date_string_to_parse = text_content # If no prefix, try to parse the whole text
 
+            if date_string_to_parse:
+                try:
+                    # Parse the entire string, relying on dateutil to find the date
+                    parsed_date = parser.parse(date_string_to_parse, fuzzy=True).date()
+                    publication_date = parsed_date.strftime("%B %d, %Y") # Format to Month DD, YYYY
+                except (ValueError, TypeError):
+                    logging.warning(f"Could not parse date from text: '{text_content}'")
+                    publication_date = None # Parsing failed, return None
+            else:
+                logging.warning(f"No date-like content found after prefix removal in: '{text_content}'")
+                publication_date = None # No date-like content found, return None
     return publication_date
 
 def process_obituary(session, db_session, url, visited_obituaries, stop_event):
