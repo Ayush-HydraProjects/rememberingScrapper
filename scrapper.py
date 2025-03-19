@@ -637,7 +637,7 @@ def main(stop_event):
             break  # Exit city loop if event is set
 
         logging.info(f"\nProcessing city {idx}/{len(subdomains)}: {subdomain}")
-        process_city(session, 'windsorstar', stop_event)
+        process_city(session, subdomain, stop_event)
 
     logging.info("\nScraping completed or stopped.")
 
