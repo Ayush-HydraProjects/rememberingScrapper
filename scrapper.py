@@ -165,7 +165,7 @@ CITY_PROVINCE_MAPPING = {
 "trentonian": ("Trenton", "Ontario"),
 "wallaceburgcourierpress": ("Wallaceburg", "Ontario"),
 "thechronicle-online": ("St. Thomas", "Ontario"),
-"wiartonecho": ("Owen Sound", "Ontario"),
+"wiartonecho": ("Wiarton", "Ontario"),
 "windsorstar": ("Windsor", "Ontario"),
 "woodstocksentinelreview": ("Woodstock", "Ontario"),
 "theguardian": ("Charlottetown", "Prince Edward Island"),
@@ -216,111 +216,194 @@ def get_city_subdomains(session):
         logging.error(f"Error fetching city subdomains: {e}")
         return []
 
-def process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event): # <- Removed state params
-    """Fetch obituary pages for a city"""
-    time.sleep(0.5)
+
+def process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event):
+    """Fetch obituary pages with first obituary check and stop on non-current dates"""
     base_url = f"https://{subdomain}.{BASE_DOMAIN}"
     search_url = f"{base_url}/obituaries/all-categories/search?search_type=advanced&ap_search_keyword={SEARCH_KEYWORD}&sort_by=date&order=desc"
 
     page = 1
     max_pages = 200
+    first_page_processed = False
 
-    while page <= max_pages:
-
-        if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
-            logging.info("Scraping stopped by user request (pagination level).")
-            return  # Exit page loop if event is set
-
+    while page <= max_pages and not stop_event.is_set():
+        logging.info(f"[{subdomain.upper()}] Pagination - Starting page {page}")
         current_url = f"{search_url}&p={page}" if page > 1 else search_url
 
         if current_url in visited_search_pages:
+            logging.info(f"[{subdomain.upper()}] Page {page} already visited, stopping pagination.")
             break
         visited_search_pages.add(current_url)
-
-        logging.info(f"Processing page {page}: {current_url}")
-        time.sleep(random.uniform(0.5, 1.5))
 
         try:
             response = session.get(current_url)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
 
-            page_urls = {urljoin(base_url, link["href"]) for link in soup.select('a[href^="/obituary/"]') if urljoin(base_url, link["href"]) not in visited_obituaries}
-
-            if not page_urls:
-                logging.info("No more obituaries found.")
+            obit_links = soup.select('a[href^="/obituary/"]')
+            if not obit_links:
+                logging.info(f"[{subdomain.upper()}] Page {page}: No obituary links found, stopping pagination.")
                 break
 
-            logging.info(f"Found {len(page_urls)} new obituaries.")
-            yield page_urls
+            # Check first obituary's date on the first page
+            if page == 1 and not first_page_processed:
+                first_obit_url = urljoin(base_url, obit_links[0]['href'])
+                pub_date_str, _ = get_publication_date_and_soup(session, first_obit_url)
+                if not is_current_month_and_year(pub_date_str):
+                    logging.info(f"[{subdomain.upper()}] First obituary is not current. Skipping city.")
+                    return
+                first_page_processed = True
 
-            next_page = soup.find("a", class_="next") or soup.find("a", string=lambda t: t and "next" in t.lower())
-            if not next_page:
-                break
+            # Extract and sort obituaries by date
+            obituary_data = []
+            for link in obit_links:
+                url = urljoin(base_url, link['href'])
+                pub_date_str, _ = get_publication_date_and_soup(session, url)
+                if pub_date_str:
+                    try:
+                        pub_date = parser.parse(pub_date_str, fuzzy=True)
+                        obituary_data.append({'url': url, 'pub_date': pub_date})
+                    except Exception as e:
+                        logging.error(f"[{subdomain.upper()}] Error parsing date {pub_date_str}: {e}")
+                        continue
+
+            # Sort by date descending
+            obituary_data.sort(key=lambda x: x['pub_date'], reverse=True)
+
+            current_page_urls = []
+            for item in obituary_data:
+                if is_current_month_and_year(item['pub_date'].strftime("%B %d, %Y")):
+                    current_page_urls.append(item['url'])
+                else:
+                    logging.info(f"[{subdomain.upper()}] Non-current obituary found. Stopping city processing.")
+                    if current_page_urls:
+                        yield current_page_urls
+                    return  # Exit entire city processing
+
+            if not current_page_urls:
+                logging.info(f"[{subdomain.upper()}] No current obituaries on page {page}. Stopping.")
+                return
+
+            yield current_page_urls
 
             page += 1
+            time.sleep(random.uniform(0.5, 1.5))
 
         except Exception as e:
-            logging.error(f"Error on page {page}: {str(e)[:100]}...")
+            logging.error(f"[{subdomain.upper()}] Error processing page {page}: {e}")
             break
 
-def process_city(session, subdomain, stop_event): # <- Removed state params
-    """Process all obituary pages in a city"""
+def get_publication_date_and_soup(session, url):
+    soup_for_debug = None
+    try:
+        response = session.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        soup_for_debug = soup
+        publication_date = get_publication_date_from_soup(soup)
+        logging.info(f"Fetched publication date for {url}: {publication_date}")
+        return publication_date, soup_for_debug
+    except Exception as e:
+        logging.error(f"Error fetching {url}: {e}")
+        return None, soup_for_debug
 
-    logging.info(f"\nProcessing city: {subdomain.upper()}\n" + "=" * 50)
+def process_city(session, subdomain, stop_event):
+    """Process a single city subdomain"""
+    logging.info(f"\n{'='*50}\nProcessing city: {subdomain.upper()}\n{'='*50}")
+    logging.info(f"[{subdomain.upper()}] Starting city processing.")
 
     total_alumni = 0
     visited_search_pages = set()
     visited_obituaries = set()
 
+    try:
+        # Get pagination generator
+        page_generator = process_search_pagination(
+            session, subdomain, visited_search_pages, visited_obituaries, stop_event
+        )
+        logging.info(f"[{subdomain.upper()}] Pagination generator created.")
 
-    for page_urls in process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event): # <- Removed state params
-
-        if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
-            logging.info("Scraping stopped by user request (city level - start of city processing).")
-            break
-
-        for url in page_urls:
-            if stop_event.is_set():  # Check stop_event before processing each URL  <- CHANGED
-                logging.info("Scraping stopped by user request (city level - before processing url).")
-                break
-
-            if url in visited_obituaries:
-                continue
-
-
-            #  Now correctly passing db.session
-            result = process_obituary(session, db.session, url, visited_obituaries, stop_event)
-            if result and result["is_alumni"]:
-                total_alumni += 1
-
-            time.sleep(random.uniform(0.7, 1.3))
-
+        for page_urls in page_generator:
+            logging.info(f"[{subdomain.upper()}] Received page_urls from generator: {len(page_urls)} urls")
+            logging.info(f"[{subdomain.upper()}] Starting loop to process {len(page_urls)} obituary URLs.")
             if stop_event.is_set():
-                logging.info("Scraping stopped by user request (city level - after processing urls).")
+                logging.info(f"[{subdomain.upper()}] Stop event detected during page URL processing.")
                 break
 
-    logging.info(f"City {subdomain} completed. Alumni found: {total_alumni}")
+            for url in page_urls:
+                if stop_event.is_set():
+                    logging.info(f"[{subdomain.upper()}] Stop event detected during obituary URL loop.")
+                    break
+
+                if url in visited_obituaries:
+                    logging.debug(f"[{subdomain.upper()}] Obituary URL already visited: {url}. Skipping.")
+                    continue
+
+                # Process obituary with retries
+                success = False
+                for attempt in range(3):
+                    try:
+                        logging.info(f"[{subdomain.upper()}] Attempt {attempt+1} to process obituary: {url}")
+                        result = process_obituary(session, db.session, url, visited_obituaries, stop_event)
+                        if result and result["is_alumni"]:
+                            total_alumni += 1
+                        success = True
+                        break
+                    except requests.exceptions.RequestException as e:
+                        logging.warning(f"[{subdomain.upper()}] Attempt {attempt + 1} failed for {url}: {e}")
+                        time.sleep(2 ** attempt)
+
+                if not success:
+                    logging.error(f"[{subdomain.upper()}] Failed to process obituary after 3 attempts: {url}")
+
+                time.sleep(random.uniform(0.7, 1.3))
+
+    except Exception as e:
+        logging.error(f"[{subdomain.upper()}] Critical error processing city: {e}")
+    finally:
+        logging.info(f"[{subdomain.upper()}] City processing finally block reached.")
+        logging.info(f"[{subdomain.upper()}] Completed. Alumni found: {total_alumni}")
+    logging.info(f"[{subdomain.upper()}] process_city function ending.\n{'='*50}\n")
+
+
+def is_current_publication_date(publication_date_str):
+    if not publication_date_str:
+        return False
+    try:
+        now = datetime.now()
+        pub_date = parser.parse(publication_date_str, fuzzy=True).date()
+        return pub_date.year == now.year and pub_date.month == now.month
+    except Exception as e:
+        logging.error(f"Date check error: {e}")
+        return False
+
+def is_current_month_and_year(publication_date_str):
+    if not publication_date_str:
+        return False
+    try:
+        now = datetime.now()
+        pub_date = parser.parse(publication_date_str, fuzzy=True).date()
+        return pub_date.year == now.year and pub_date.month == now.month
+    except Exception as e:
+        logging.error(f"Date check error: {e}")
+        return False
+
 
 def extract_dates(soup):
-    """
-    Extracts birth and death dates from the obituary details, takes soup as argument.
-    Handles HTML with spans and accounts for missing information and no-year cases.
-    """
+    """Extracts birth and death dates from obituary details."""
     birth_date = None
     death_date = None
 
     obit_dates_tag = soup.find("h2", class_="obit-dates")
     if obit_dates_tag:
-        date_strings = [s.strip() for s in obit_dates_tag.strings if s.strip()]  # Account for empty strings
+        date_strings = [s.strip() for s in obit_dates_tag.strings if s.strip()]
 
         if len(date_strings) == 1:
-            death_date = date_strings[0]  # Keep the date exactly as it is without appending a year
+            death_date = date_strings[0]
         elif len(date_strings) >= 2:
             birth_date = date_strings[0]
             death_date = date_strings[-1]
 
-        # Basic data validation to handle invalid dates (empty strings or 'N/A')
         if birth_date == "N/A" or not birth_date:
             birth_date = None
         if death_date == "N/A" or not death_date:
@@ -329,135 +412,67 @@ def extract_dates(soup):
     return birth_date, death_date
 
 def parse_date(date_str):
-    """Try parsing date using dateutil.parser and return 'Month dd, yyyy' format."""
+    """Parse date using dateutil.parser and return 'Month dd, yyyy' format."""
     try:
         parsed_date = parser.parse(date_str, fuzzy=True).date()
-        # Format the date to 'Month dd, yyyy'
         return parsed_date.strftime("%B %d, %Y")
     except (ValueError, TypeError):
         return None
 
-# def extract_death_and_birth_dates(text):
-#     """
-#     Extracts death and birth dates from the given text using spaCy NLP and relative keywords.
-#     Returns:
-#         A tuple containing the extracted death date and birth date (or None if not found).
-#     """
-#     death_date = None
-#     birth_date = None
-#
-#     doc = nlp(text)
-#
-#     # Find the first death indicator to cut down on processing
-#     death_index = -1  # If no indicator, still run full search
-#     for i, sent in enumerate(doc.sents):
-#         death_keywords = ["passing", "passed away", "death", "died", "rested", "passed", "at the age of"]
-#         if any(keyword in sent.text.lower() for keyword in death_keywords):
-#             death_index = i
-#             break
-#
-#     for i, sent in enumerate(doc.sents):  # Process each sentence separately
-#         death_keywords = ["passing", "passed away", "death", "died", "rested", "passed", "at the age of"]
-#         birth_keywords = ["born", "birth", "born in"]
-#
-#         # Check for death dates and limit to the first event with the code.
-#         if any(keyword in sent.text.lower() for keyword in death_keywords) and i == death_index:
-#             for ent in sent.ents:
-#                 if ent.label_ == "DATE":
-#                     death_date = ent.text
-#                     break  # Take the first date found in the sentence
-#
-#         # Check for birth dates at all sections.
-#         if any(keyword in sent.text.lower() for keyword in birth_keywords):
-#             for ent in sent.ents:
-#                 if ent.label_ == "DATE":
-#                     birth_date = ent.text
-#                     break  # Take the first date found in the sentence
-#
-#     # Parse dates found in the text and format them
-#     if birth_date:
-#         birth_date = parse_date(birth_date)
-#     if death_date:
-#         death_date = parse_date(death_date)
-#
-#     return death_date, birth_date
-
 def extract_year_from_date(date_string):
-    """
-    Extracts the year from a date string in various formats.
-    Returns the year as an integer if found and valid, otherwise None.
-    """
+    """Extracts the year from a date string."""
     year_match = re.search(r'\b(\d{4})\b', date_string)
     if year_match:
-        year = int(year_match.group(1))
-        return year
+        return int(year_match.group(1))
     else:
-        # Handle cases where year might be in 2-digit format and assume 21st century if ambiguous, otherwise None
-        year_match_2digit = re.search(r'/(\d{2})$|[-](\d{2})$|,?\s+(\d{2})$', date_string) # check for 2 digit year at end after /,- or space, comma
+        year_match_2digit = re.search(r'/(\d{2})$|[-](\d{2})$|,?\s+(\d{2})$', date_string)
         if year_match_2digit:
-            year_str = next((item for item in year_match_2digit.groups() if item is not None), None) # get the first non-None group
+            year_str = next((item for item in year_match_2digit.groups() if item is not None), None)
             if year_str:
                 year = int(year_str)
-                if 0 <= year <= 99: # Basic 2-digit year handling, assuming 21st century
+                if 0 <= year <= 99:
                     return 2000 + year
         return None
 
 
 def extract_birth_and_death_dates_from_obituary(text):
-        """
-        Extracts the first date found in the obituary text as the death date,
-        only if the year of the date is greater than 2000. Birth date is always set to None.
-        This is a simplified approach and may not be accurate in all cases.
-        Returns:
-            A tuple containing None as birth_date and the extracted death date string
-            (or None if not found or year is not > 2000).
-        """
-        dates_found = []
-        date_patterns = [
-            r'\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b',
-            r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{1,2},?\s+\d{4}\b',
-            r'\b\d{1,2}/\d{1,2}/\d{2,4}\b',
-            r'\b\d{1,2}-\d{1,2}-\d{2,4}\b',
-            r'\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\b',
-            r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b',
-            r'\b\d{4}\b'
-        ]
+    """Extracts death date from obituary text if year > 2000."""
+    dates_found = []
+    date_patterns = [
+        r'\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b',
+        r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{1,2},?\s+\d{4}\b',
+        r'\b\d{1,2}/\d{1,2}/\d{2,4}\b',
+        r'\b\d{1,2}-\d{1,2}-\d{2,4}\b',
+        r'\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\b',
+        r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b',
+        r'\b\d{4}\b'
+    ]
 
-        for pattern in date_patterns:
-            for match in re.finditer(pattern, text, re.IGNORECASE):
-                dates_found.append(match.group(0))
-                if len(dates_found) == 1: # Only need the first date for death date check
-                    break
+    for pattern in date_patterns:
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            dates_found.append(match.group(0))
             if len(dates_found) == 1:
                 break
+        if len(dates_found) == 1:
+            break
 
-        death_date = None
-        if dates_found:
-            first_date_found = dates_found[0]
-            year = extract_year_from_date(first_date_found)
-            if year and year > 2000:
-                death_date = first_date_found
-            else:
-                death_date = None # Set to None if year is not > 2000 or year extraction failed
+    death_date = None
+    if dates_found:
+        first_date_found = dates_found[0]
+        year = extract_year_from_date(first_date_found)
+        if year and year > 2000:
+            death_date = first_date_found
+        else:
+            death_date = None
 
-        return None, death_date
+    return None, death_date
 
 def extract_text(tag):
     return tag.get_text(strip=True) if tag else "N/A"
 
 
 def get_publication_date_from_soup(soup):
-    """
-    Extracts ONLY the date part from the publication line in the BeautifulSoup object,
-    ignoring all other text content in the line.  Relies on date parsing to isolate the date.
-
-    Args:
-        soup: BeautifulSoup object of the obituary page.
-
-    Returns:
-        The publication date string in 'Month DD, YYYY' format if a valid date is found,
-        or None if no valid date is extracted.
-    """
+    """Extract publication date from BeautifulSoup object."""
     publication_date = None
     published_div = soup.find('div', class_='details-published')
     if published_div:
@@ -472,79 +487,77 @@ def get_publication_date_from_soup(soup):
                     date_string_to_parse = text_content[len(prefix):].strip()
                     break
             if date_string_to_parse is None:
-                date_string_to_parse = text_content # If no prefix, try to parse the whole text
+                date_string_to_parse = text_content
 
             if date_string_to_parse:
                 try:
-                    # Parse the entire string, relying on dateutil to find the date
                     parsed_date = parser.parse(date_string_to_parse, fuzzy=True).date()
-                    publication_date = parsed_date.strftime("%B %d, %Y") # Format to Month DD, YYYY
+                    publication_date = parsed_date.strftime("%B %d, %Y")
                 except (ValueError, TypeError):
                     logging.warning(f"Could not parse date from text: '{text_content}'")
-                    publication_date = None # Parsing failed, return None
-            else:
-                logging.warning(f"No date-like content found after prefix removal in: '{text_content}'")
-                publication_date = None # No date-like content found, return None
+                    publication_date = None
     return publication_date
 
 def process_obituary(session, db_session, url, visited_obituaries, stop_event):
+    """Extract obituary details, check for alumni keywords, and store in DB."""
     time.sleep(0.2)
     if stop_event.is_set():
         logging.info("Scraping stopped by user request (obituary level - before processing).")
         return None
 
-    """Extract obituary details, check for alumni keywords, and store in both tables."""
+    subdomain = urlparse(url).hostname.split('.')[0].upper() # Extract subdomain for logging
+    logging.info(f"[{subdomain}] Obituary Processing - Starting process_obituary for URL: {url}")
     if url in visited_obituaries:
+        logging.debug(f"[{subdomain}] Obituary already visited: {url}. Skipping.")
         return None
     visited_obituaries.add(url)
 
-    logging.info(f"Processing obituary: {url}")
     try:
         response = session.get(url)
-        response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
 
-        publication_date_text = get_publication_date_from_soup(soup)
+        publication_date_str = get_publication_date_from_soup(soup)
+        try:
+            publication_date = parser.parse(publication_date_str) if publication_date_str else None
+        except Exception as e:
+            logging.error(f"[{subdomain}] Failed to parse publication date: {e}")
+            publication_date = None
 
-        # Extract name components
+        current_month_year = datetime.now().strftime("%B %Y")
+        try:
+            pub_date = parser.parse(publication_date_str)
+            pub_month_year = pub_date.strftime("%B %Y")
+            tags = 'new' if pub_month_year == current_month_year else 'updated'
+        except Exception as e:
+            logging.error(f"[{subdomain}] Date parsing error: {e}")
+            tags = 'updated'
+            pub_date = None
+
+
         obit_name_tag = soup.find("h1", class_="obit-name")
         last_name_tag = soup.find("span", class_="obit-lastname-upper")
 
-        if not obit_name_tag: # Check if obit_name_tag is found
-            logging.warning(f"Could not find obit-name tag for {url}")
-            return None # Exit early if critical tag is missing
-
-        if not last_name_tag: # Check if last_name_tag is found
-            logging.warning(f"Could not find obit-lastname-upper tag for {url}")
-            return None # Exit early if critical tag is missing
-
-        first_name = extract_text(obit_name_tag).replace(extract_text(last_name_tag), "").strip() if obit_name_tag and last_name_tag else None
-        last_name = extract_text(last_name_tag).capitalize() if last_name_tag else None
-
-        if not first_name or not last_name:
-            logging.error(f"Missing name components for obituary: {url}. First Name: {first_name}, Last Name: {last_name}")
+        if not obit_name_tag or not last_name_tag:
+            logging.warning(f"[{subdomain}] Could not find name components for obituary: {url}. Skipping.")
             return None
 
+        first_name = extract_text(obit_name_tag).replace(extract_text(last_name_tag), "").strip()
+        last_name = extract_text(last_name_tag).capitalize()
+
         content = soup.select_one("span.details-copy")
-        if not content: # Check if content tag is found
-            logging.warning(f"Could not find details-copy tag for {url}")
-            content_text = "" # Assign empty string to avoid AttributeError later
-        else:
-            content_text = content.get_text(strip=True)
+        content_text = extract_text(content)
 
         donation_keywords = ["donation", "charity", "memorial fund", "contributions"]
         donation_mentions = [sentence for sentence in content_text.split(". ") if
                              any(keyword in sentence.lower() for keyword in donation_keywords)]
         donation_info = "; ".join(donation_mentions)
 
-        funeral_home_tag = soup.find("span", class_="obit-fh")  # Example selector - adjust as needed
-        funeral_home = extract_text(funeral_home_tag) if funeral_home_tag else None
+        funeral_home_tag = soup.find("span", class_="obit-fh")
+        funeral_home = extract_text(funeral_home_tag)
 
-        tags = None # Or tags = "" if you prefer empty string
 
-        # Extract dates and location
         obit_dates_tag = soup.find("h2", class_="obit-dates")
-
         if obit_dates_tag:
             tag_content = obit_dates_tag.get_text(strip=True)
             if tag_content:
@@ -555,91 +568,73 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
             birth_date, death_date = extract_birth_and_death_dates_from_obituary(content_text)
 
         city_province_result = extract_city_and_province(url)
-        if city_province_result is None:
-            logging.warning(f"City and province not found for URL: {url}. Skipping obituary.")
-            return None # Skip processing this obituary
+        if not city_province_result:
+            logging.warning(f"[{subdomain}] City and province not found for URL: {url}. Skipping obituary.")
+            return None
 
         city, province = city_province_result
 
-
-        # Check for alumni status
         is_alumni = any(keyword in content_text for keyword in ALUMNI_KEYWORDS)
 
         if is_alumni:
             from app import app
             with app.app_context():
-                # Save to Obituary table
-                obituary_entry = Obituary(
-                    name=f"{first_name} {last_name}",
-                    first_name=first_name,
-                    last_name=last_name,
-                    birth_date=birth_date,
-                    death_date=death_date,
-                    donation_information=donation_info,
-                    obituary_url=url,
-                    city=city,
-                    province=province,
-                    is_alumni=is_alumni,
-                    family_information=content_text,
-                    funeral_home=funeral_home,  # Save funeral home
-                    tags=tags,  # Save tags (initially None)
-                    publication_date=publication_date_text,
-                )
+                obituary_entry = Obituary(**{
+                    'name': f"{first_name} {last_name}", 'first_name': first_name, 'last_name': last_name,
+                    'birth_date': birth_date, 'death_date': death_date,
+                    'donation_information': donation_info, 'obituary_url': url, 'city': city,
+                    'province': province, 'is_alumni': is_alumni, 'family_information': content_text,
+                    'funeral_home': funeral_home,
+                    'tags': tags,  # Update this line
+                    'publication_date': pub_date if publication_date_str else None
+                })
                 db.session.add(obituary_entry)
                 db.session.flush()
 
-                # Check if DistinctObituary entry already exists
                 distinct_entry_exists = DistinctObituary.query.filter_by(name=f"{first_name} {last_name}").first()
-                if distinct_entry_exists:
-                    logging.info(f"Duplicate alumni obituary found: {first_name} {last_name}. Skipping DistinctObituary entry.")
-                else:
-                    distinct_obituary_entry = DistinctObituary(
-                        name=f"{first_name} {last_name}",
-                        first_name=first_name,
-                        last_name=last_name,
-                        birth_date=birth_date,
-                        death_date=death_date,
-                        donation_information=donation_info,
-                        obituary_url=url,
-                        city=city,
-                        province=province,
-                        is_alumni=is_alumni,
-                        family_information=content_text,
-                        funeral_home=funeral_home,  # Save funeral home
-                        tags=tags,  # Save tags (initially None)
-                        publication_date=publication_date_text,
-                    )
+                if not distinct_entry_exists:
+                    distinct_obituary_entry = DistinctObituary(**{
+                        'name': f"{first_name} {last_name}", 'first_name': first_name, 'last_name': last_name,
+                        'birth_date': birth_date, 'death_date': death_date,
+                        'donation_information': donation_info, 'obituary_url': url, 'city': city,
+                        'province': province, 'is_alumni': is_alumni, 'family_information': content_text,
+                        'funeral_home': funeral_home,
+                        'tags': tags,  # Update this line
+                        'publication_date': pub_date if publication_date_str else None
+                    })
                     db.session.add(distinct_obituary_entry)
                     db.session.commit()
-                    logging.info(f"Distinct Alumni Obituary saved: {first_name} {last_name}") # Moved inside else block
+                    logging.info(f"[{subdomain}] Distinct Alumni Obituary saved: {first_name} {last_name}")
+                else:
+                    logging.info(f"[{subdomain}] Duplicate alumni obituary found: {first_name} {last_name}. Skipping DistinctObituary entry.")
 
-        logging.info(f"Obituary saved: {first_name} {last_name} {'✅ (Alumni)' if is_alumni else '❌ (Not Alumni)'}")
-        return {"name": f"{first_name} {last_name}", "is_alumni": is_alumni, "url": url, "publication_date": publication_date_text}
+        logging.info(f"[{subdomain}] Obituary saved: {first_name} {last_name} {'✅ (Alumni)' if is_alumni else '❌ (Not Alumni)'}")
+        return {"name": f"{first_name} {last_name}", "is_alumni": is_alumni, "url": url,"publication_date": publication_date, "tags": tags}
 
     except Exception as e:
-        logging.error(f"Error processing obituary {url}: {e}")
+        logging.error(f"[{subdomain}] Error processing obituary {url}: {e}")
         return None
 
 def main(stop_event):
-    time.sleep(15)
-
+    logging.info("Starting obituary scraping process.")
     session = configure_session()
-
 
     subdomains = get_city_subdomains(session)
     if not subdomains:
-        logging.error("No city subdomains found.")
+        logging.error("No city subdomains found. Aborting.")
         return
 
-    for idx, subdomain in enumerate(subdomains, 1):
-        if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
-            logging.info("Scraping stopped by user request (city level).")
-            break  # Exit city loop if event is set
+    logging.info(f"Found {len(subdomains)} city subdomains to process.")
 
-        logging.info(f"\nProcessing city {idx}/{len(subdomains)}: {subdomain}")
+    for idx, subdomain in enumerate(subdomains, 1):
+        if stop_event.is_set():
+            logging.info("Scraping stopped by user request (city level).")
+            break
+
+        logging.info(f"\n{'='*50}\nProcessing city {idx}/{len(subdomains)}: {subdomain.upper()}\n{'='*50}")
         process_city(session, subdomain, stop_event)
 
-    logging.info("\nScraping completed or stopped.")
+    logging.info("Obituary scraping process completed or stopped.")
 
 if __name__ == "__main__":
     pass

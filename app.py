@@ -1,9 +1,9 @@
 # app.py
 import os
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, redirect, url_for
 from flask_migrate import Migrate
 from sqlalchemy import extract, func, text
-
+from flask import flash
 from sqlalchemy.orm import aliased
 
 import logging
@@ -48,7 +48,7 @@ def dashboard():
                                total_obituaries=total_obituaries,
                                total_cities=total_cities,
                                obituaries=latest_obituaries,
-                               scraping_active= scraping_active) # Pass scraping_active to template
+                               scraping_active= scraping_active,) # Pass scraping_active to template
 
 @app.route('/search_obituaries')
 def search_obituaries():
@@ -98,6 +98,7 @@ def search_obituaries():
             'death_date': obit.death_date,
             'publication_date': obit.publication_date,
             'is_alumni': obit.is_alumni,
+            'tags': obit.tags,
         } for obit in obituaries]
 
         return jsonify(obituary_list)
@@ -137,6 +138,7 @@ def get_obituaries():
             'death_date': obit.death_date,
             'publication_date': obit.publication_date, # <---- Make sure publication_date is included
             'is_alumni': obit.is_alumni,
+            'tags': obit.tags,
         } for obit in obituaries]
         return jsonify(obituary_list)
 
@@ -170,7 +172,8 @@ def get_publications_grouped_by_year():
                     'birth_date', DistinctObituary.birth_date,
                     'death_date', DistinctObituary.death_date,
                     'publication_date', DistinctObituary.publication_date,
-                    'is_alumni', DistinctObituary.is_alumni
+                    'is_alumni', DistinctObituary.is_alumni,
+                    'tags', DistinctObituary.tags
                 )).label('publications_in_year')
             )
             .group_by(extract('year', DistinctObituary.publication_date))
@@ -196,12 +199,34 @@ def get_publications_grouped_by_year():
         return None
 
 
+@app.route('/update_tags/<int:obituary_id>', methods=['POST'])
+def update_tags(obituary_id):
+    new_tags = request.form.get('tags')
+
+    # Update Obituary
+    obituary = Obituary.query.get_or_404(obituary_id)
+    obituary.tags = new_tags
+
+    # Update DistinctObituary if exists
+    distinct_obit = DistinctObituary.query.filter_by(
+        obituary_url=obituary.obituary_url
+    ).first()
+    if distinct_obit:
+        distinct_obit.tags = new_tags
+
+    db.session.commit()
+    return redirect(url_for('obituary_detail', obituary_id=obituary_id))
+
+
 @app.route('/start_scrape', methods=['POST'])
 def start_scrape():
     """Route to start the scraper in a background thread."""
     global scrape_thread, stop_event, last_scrape_time
 
-    if not stop_event.is_set(): # Check event status instead of boolean flag
+    if not stop_event.is_set():
+        db.session.query(Obituary).update({Obituary.tags: 'updated'})
+        db.session.query(DistinctObituary).update({DistinctObituary.tags: 'updated'})
+        db.session.commit() # Check event status instead of boolean flag
         return jsonify({'message': 'Scraping is already running!'}), 400
 
     stop_event.clear()  # Clear the stop event to start scraping
@@ -275,11 +300,11 @@ def run_scraper_background(stop_event):
 #             'total_cities': total_cities,
 #         })
 
-@app.route('/obituary/<int:pk>')
-def obituary_detail(pk):
+@app.route('/obituary/<int:obituary_id>')
+def obituary_detail(obituary_id):
     """Route to display details for a specific obituary."""
     with app.app_context():
-        obituary = DistinctObituary.query.get_or_404(pk) # Fetch from DistinctObituary, or Obituary if you prefer
+        obituary = DistinctObituary.query.get_or_404(obituary_id) # Fetch from DistinctObituary, or Obituary if you prefer
         return render_template('obituary_detail.html', obituary=obituary)
 
 
@@ -310,7 +335,7 @@ def generate_csv():
                     'province': obit.province,
                     'birth_date': obit.birth_date,
                     'death_date': obit.death_date,
-                    # 'is_alumni': obit.is_alumni
+                    'tags': obit.tags,
                 })
 
         return csv_file_path  # Return the file path
