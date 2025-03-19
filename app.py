@@ -4,6 +4,8 @@ from flask import Flask, render_template, jsonify, request
 from flask_migrate import Migrate
 from sqlalchemy import extract, func, text
 
+from sqlalchemy.orm import aliased
+
 import logging
 from flask_sqlalchemy import SQLAlchemy
 from models import Obituary, DistinctObituary, db
@@ -36,7 +38,7 @@ last_scrape_time = None
 def dashboard():
     """Route to display the scraper dashboard."""
     with app.app_context():
-        total_alumni = DistinctObituary.query.filter_by(is_alumni=True).count()
+        total_alumni = DistinctObituary.query.distinct(DistinctObituary.name).count()
         total_obituaries = DistinctObituary.query.count()
         total_cities = len(set(obit.city for obit in DistinctObituary.query.all() if obit.city))
         latest_obituaries = DistinctObituary.query.limit(15).all()
@@ -105,7 +107,24 @@ def search_obituaries():
 def get_obituaries():
     """Route to fetch distinct alumni obituaries data, ordered by city and publication date."""
     with app.app_context():
-        obituaries = DistinctObituary.query.order_by(DistinctObituary.publication_date.desc()).all()
+        # Subquery to rank entries by name and publication date
+        subquery = db.session.query(
+            DistinctObituary,
+            func.row_number().over(
+                partition_by=DistinctObituary.name,  # Group by name
+                order_by=DistinctObituary.publication_date.desc()  # Latest first
+            ).label('row_num')
+        ).subquery()
+
+        # Create an alias to map back to our model
+        ObituaryAlias = aliased(DistinctObituary, subquery)
+
+        # Get only the latest entry per name
+        obituaries = db.session.query(ObituaryAlias).\
+            filter(subquery.c.row_num == 1).\
+            order_by(ObituaryAlias.publication_date.desc()).\
+            all()
+        
         obituary_list = [{
             'id': obit.id,
             'name': obit.name,

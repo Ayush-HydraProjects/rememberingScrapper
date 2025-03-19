@@ -216,186 +216,91 @@ def get_city_subdomains(session):
         logging.error(f"Error fetching city subdomains: {e}")
         return []
 
-
-def process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event):
-    """Fetch obituary pages with integrated first obituary check"""
+def process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event): # <- Removed state params
+    """Fetch obituary pages for a city"""
+    time.sleep(0.5)
     base_url = f"https://{subdomain}.{BASE_DOMAIN}"
     search_url = f"{base_url}/obituaries/all-categories/search?search_type=advanced&ap_search_keyword={SEARCH_KEYWORD}&sort_by=date&order=desc"
 
     page = 1
     max_pages = 200
-    first_page_processed = False
 
-    while page <= max_pages and not stop_event.is_set():
+    while page <= max_pages:
+
+        if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
+            logging.info("Scraping stopped by user request (pagination level).")
+            return  # Exit page loop if event is set
+
         current_url = f"{search_url}&p={page}" if page > 1 else search_url
 
         if current_url in visited_search_pages:
             break
+        visited_search_pages.add(current_url)
+
+        logging.info(f"Processing page {page}: {current_url}")
+        time.sleep(random.uniform(0.5, 1.5))
 
         try:
-            # Track visited pages
-            visited_search_pages.add(current_url)
-            logging.info(f"Processing page {page}: {current_url}")
-
             response = session.get(current_url)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
 
-            # Get all obituary links
-            obit_links = soup.select('a[href^="/obituary/"]')
-            if not obit_links:
+            page_urls = {urljoin(base_url, link["href"]) for link in soup.select('a[href^="/obituary/"]') if urljoin(base_url, link["href"]) not in visited_obituaries}
+
+            if not page_urls:
+                logging.info("No more obituaries found.")
                 break
 
-            base_page_urls = [urljoin(base_url, link["href"]) for link in obit_links]
-
-            page_urls = []  # List to hold URLs for current page to yield later
-
-            # Fetch publication date of the first obituary link to check city relevance
-            if obit_links:
-                first_obit_url = urljoin(base_url, obit_links[0]["href"])
-                first_pub_date_str, _ = get_publication_date_and_soup(session, first_obit_url)
-
-                if first_pub_date_str:
-                    if not is_current_month_and_year(first_pub_date_str):
-                        logging.info(f"First obituary's publication date {first_pub_date_str} is not current month and year. Skipping city {subdomain}.")
-                        return  # Skip the rest of the city
-                else:
-                    logging.warning(f"Could not fetch publication date for first obituary on page, continuing page processing.") # Continue if date fetch fails, to not skip city prematurely
-
-
-            # Prepare for sorting by fetching publication dates and current month check
-            obituary_data_for_sort = []
-            for link in obit_links:
-                url = urljoin(base_url, link["href"])
-                pub_date_str, _ = get_publication_date_and_soup(session, url)  # Fetch once here
-                if pub_date_str:
-                    if is_current_month_and_year(pub_date_str): # Only process current month obituaries
-                        try:
-                            pub_datetime = parser.parse(pub_date_str, fuzzy=True)
-                            obituary_data_for_sort.append({
-                                'url': url,
-                                'pub_datetime': pub_datetime,
-                                'pub_date_str': pub_date_str  # Store the string for later use
-                            })
-                        except Exception as date_parse_err:
-                            logging.warning(f"Date parsing error for sorting {url}: {date_parse_err}. Skipping in sort.")
-                    else:
-                        logging.info(f"Obituary publication date {pub_date_str} is not current month and year. Skipping obituary.")
-                else:
-                    logging.warning(f"No publication date found for {url}. Skipping in sort.")
-
-
-            # Sort obituaries by publication date (most recent first)
-            obituary_data_for_sort.sort(key=lambda item: item['pub_datetime'], reverse=True)
-
-            # Create sorted page_urls from sorted data
-            page_urls = [item['url'] for item in obituary_data_for_sort]
-
-
-            if not page_urls: # If no current month obituaries on this page, stop pagination for this city
-                logging.info(f"No current month obituaries found on page {page}. Stopping pagination for city {subdomain}.")
-                return # Stop pagination for this city
-
-
+            logging.info(f"Found {len(page_urls)} new obituaries.")
             yield page_urls
 
-            # Check for next page
-            next_page = soup.find("a", class_="next") or soup.find("a", string="Next")
+            next_page = soup.find("a", class_="next") or soup.find("a", string=lambda t: t and "next" in t.lower())
             if not next_page:
                 break
+
             page += 1
-            time.sleep(random.uniform(0.5, 1.5))
 
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Network error on page {page}: {e}")
-            break
         except Exception as e:
-            logging.error(f"Unexpected error on page {page}: {e}")
+            logging.error(f"Error on page {page}: {str(e)[:100]}...")
             break
 
-def get_publication_date_and_soup(session, url):
-    try:
-        response = session.get(url, timeout=10)  # Add timeout
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        publication_date = get_publication_date_from_soup(soup)
-        return publication_date, soup
-    except Exception as e:
-        logging.error(f"Error fetching {url}: {e}")
-        return None, None
+def process_city(session, subdomain, stop_event): # <- Removed state params
+    """Process all obituary pages in a city"""
 
-def process_city(session, subdomain, stop_event):
-    """Process city with integrated pagination and error handling"""
     logging.info(f"\nProcessing city: {subdomain.upper()}\n" + "=" * 50)
 
     total_alumni = 0
     visited_search_pages = set()
     visited_obituaries = set()
 
-    try:
-        # Get pagination generator
-        page_generator = process_search_pagination(
-            session, subdomain, visited_search_pages, visited_obituaries, stop_event
-        )
 
-        for page_urls in page_generator:
-            if stop_event.is_set():
+    for page_urls in process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event): # <- Removed state params
+
+        if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
+            logging.info("Scraping stopped by user request (city level - start of city processing).")
+            break
+
+        for url in page_urls:
+            if stop_event.is_set():  # Check stop_event before processing each URL  <- CHANGED
+                logging.info("Scraping stopped by user request (city level - before processing url).")
                 break
 
-            for url in page_urls:
-                if stop_event.is_set():
-                    break
-
-                if url in visited_obituaries:
-                    continue
-
-                # Process obituary with retries
-                success = False
-                for attempt in range(3):
-                    try:
-                        result = process_obituary(session, db.session, url, visited_obituaries, stop_event)
-                        if result and result["is_alumni"]:
-                            total_alumni += 1
-                        success = True
-                        break
-                    except requests.exceptions.RequestException as e:
-                        logging.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
-                        time.sleep(2 ** attempt)
-
-                if not success:
-                    logging.error(f"Failed to process obituary after 3 attempts: {url}")
-
-                time.sleep(random.uniform(0.7, 1.3))
-
-    except Exception as e:
-        logging.error(f"Critical error processing {subdomain}: {e}")
-    finally:
-        logging.info(f"Completed {subdomain}. Alumni found: {total_alumni}")
+            if url in visited_obituaries:
+                continue
 
 
+            #  Now correctly passing db.session
+            result = process_obituary(session, db.session, url, visited_obituaries, stop_event)
+            if result and result["is_alumni"]:
+                total_alumni += 1
 
-def is_current_publication_date(publication_date_str):
-    if not publication_date_str:
-        return False
-    try:
-        now = datetime.now()
-        pub_date = parser.parse(publication_date_str, fuzzy=True).date()
-        return pub_date.year == now.year and pub_date.month == now.month
-    except Exception as e:
-        logging.error(f"Date check error: {e}")
-        return False
+            time.sleep(random.uniform(0.7, 1.3))
 
-def is_current_month_and_year(publication_date_str):
-    if not publication_date_str:
-        return False
-    try:
-        now = datetime.now()
-        pub_date = parser.parse(publication_date_str, fuzzy=True).date()
-        return pub_date.year == now.year and pub_date.month == now.month
-    except Exception as e:
-        logging.error(f"Date check error: {e}")
-        return False
+            if stop_event.is_set():
+                logging.info("Scraping stopped by user request (city level - after processing urls).")
+                break
 
+    logging.info(f"City {subdomain} completed. Alumni found: {total_alumni}")
 
 def extract_dates(soup):
     """
@@ -718,12 +623,10 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
 def main(stop_event):
     time.sleep(15)
 
-
     session = configure_session()
 
 
     subdomains = get_city_subdomains(session)
-
     if not subdomains:
         logging.error("No city subdomains found.")
         return
