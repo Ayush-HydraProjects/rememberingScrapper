@@ -69,8 +69,6 @@ CITY_PROVINCE_MAPPING = {
 "thecragandcanyon": ("Banff", "Alberta"),
 "thebeaumontnews": ("Beaumont", "Alberta"),
 "calgary": ("Calgary", "Alberta"),
-"calgaryherald": ("Calgary", "Alberta"),
-"calgarysun": ("Calgary", "Alberta"),
 "cochranetimes": ("Cochrane", "Alberta"),
 "coldlakesun": ("Cold Lake", "Alberta"),
 "devondispatch": ("Edmonton", "Alberta"),
@@ -122,13 +120,7 @@ CITY_PROVINCE_MAPPING = {
 "kingscountyrecord": ("Sussex", "New Brunswick"),
 "bugleobserver": ("Woodstock", "New Brunswick"),
 "thetelegram": ("St. John's", "Newfoundland and Labrador"),
-"theannapolisvalleyregister": ("Annapolis Royal", "Nova Scotia"),
-"thecapebretonpost": ("Cape Breton", "Nova Scotia"),
-"thetricountyvanguard": ("Digby, Shelburne and Yarmouth Counties", "Nova Scotia"),
-"thechronicleherald": ("Halifax", "Nova Scotia"),
-"thevalleyjournaladvertiser": ("Hantsport", "Nova Scotia"),
 "thenewglasgownews": ("New Glasgow", "Nova Scotia"),
-"thetruronews": ("Truro", "Nova Scotia"),
 "intelligencer": ("Belleville", "Ontario"),
 "brantfordexpositor": ("Brantford", "Ontario"),
 "recorder": ("Brockville", "Ontario"),
@@ -154,8 +146,6 @@ CITY_PROVINCE_MAPPING = {
 "nationalpost": ("National Post", "Ontario"),
 "nugget": ("North Bay", "Ontario"),
 "ottawa": ("Ottawa", "Ontario"),
-"ottawacitizen": ("Ottawa", "Ontario"),
-"ottawasun": ("Ottawa", "Ontario"),
 "owensoundsuntimes": ("Owen Sound", "Ontario"),
 "parisstaronline": ("Brantford", "Ontario"),
 "pembrokeobserver": ("Pembroke", "Ontario"),
@@ -196,9 +186,14 @@ def extract_city_and_province(url):
     subdomain = parsed_url.hostname.split('.')[0]
 
     # Look up city and province based on the subdomain
-    city, province = CITY_PROVINCE_MAPPING.get(subdomain.lower(), (None, None))
+    city_province = CITY_PROVINCE_MAPPING.get(subdomain.lower())
 
-    return city, province
+    if city_province:
+        city, province = city_province
+        return city, province
+    else:
+        return None  # Return None if subdomain is not found in mapping
+
 
 
 def get_city_subdomains(session):
@@ -494,7 +489,7 @@ def get_publication_date_from_soup(soup):
 
 def process_obituary(session, db_session, url, visited_obituaries, stop_event):
     time.sleep(0.2)
-    if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
+    if stop_event.is_set():
         logging.info("Scraping stopped by user request (obituary level - before processing).")
         return None
 
@@ -506,27 +501,39 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
     logging.info(f"Processing obituary: {url}")
     try:
         response = session.get(url)
-        response.raise_for_status()
+        response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
         soup = BeautifulSoup(response.text, "html.parser")
 
         publication_date_text = get_publication_date_from_soup(soup)
-
 
         # Extract name components
         obit_name_tag = soup.find("h1", class_="obit-name")
         last_name_tag = soup.find("span", class_="obit-lastname-upper")
 
+        if not obit_name_tag: # Check if obit_name_tag is found
+            logging.warning(f"Could not find obit-name tag for {url}")
+            return None # Exit early if critical tag is missing
+
+        if not last_name_tag: # Check if last_name_tag is found
+            logging.warning(f"Could not find obit-lastname-upper tag for {url}")
+            return None # Exit early if critical tag is missing
+
         first_name = extract_text(obit_name_tag).replace(extract_text(last_name_tag), "").strip() if obit_name_tag and last_name_tag else None
         last_name = extract_text(last_name_tag).capitalize() if last_name_tag else None
 
         if not first_name or not last_name:
-            logging.error(f"Missing name for obituary: {url}")
+            logging.error(f"Missing name components for obituary: {url}. First Name: {first_name}, Last Name: {last_name}")
             return None
 
-        content = soup.select_one("span.details-copy").get_text(strip=True) if soup.select_one("span.details-copy") else ""
+        content = soup.select_one("span.details-copy")
+        if not content: # Check if content tag is found
+            logging.warning(f"Could not find details-copy tag for {url}")
+            content_text = "" # Assign empty string to avoid AttributeError later
+        else:
+            content_text = content.get_text(strip=True)
 
         donation_keywords = ["donation", "charity", "memorial fund", "contributions"]
-        donation_mentions = [sentence for sentence in content.split(". ") if
+        donation_mentions = [sentence for sentence in content_text.split(". ") if
                              any(keyword in sentence.lower() for keyword in donation_keywords)]
         donation_info = "; ".join(donation_mentions)
 
@@ -543,14 +550,20 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
             if tag_content:
                 birth_date, death_date = extract_dates(soup)
             else:
-                birth_date, death_date = extract_birth_and_death_dates_from_obituary(content)
+                birth_date, death_date = extract_birth_and_death_dates_from_obituary(content_text)
         else:
-            birth_date, death_date = extract_birth_and_death_dates_from_obituary(content)
+            birth_date, death_date = extract_birth_and_death_dates_from_obituary(content_text)
 
-        city, province = extract_city_and_province(url)
+        city_province_result = extract_city_and_province(url)
+        if city_province_result is None:
+            logging.warning(f"City and province not found for URL: {url}. Skipping obituary.")
+            return None # Skip processing this obituary
+
+        city, province = city_province_result
+
 
         # Check for alumni status
-        is_alumni = any(keyword in content for keyword in ALUMNI_KEYWORDS)
+        is_alumni = any(keyword in content_text for keyword in ALUMNI_KEYWORDS)
 
         if is_alumni:
             from app import app
@@ -567,7 +580,7 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                     city=city,
                     province=province,
                     is_alumni=is_alumni,
-                    family_information=content,
+                    family_information=content_text,
                     funeral_home=funeral_home,  # Save funeral home
                     tags=tags,  # Save tags (initially None)
                     publication_date=publication_date_text,
@@ -575,9 +588,11 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                 db.session.add(obituary_entry)
                 db.session.flush()
 
-                # Save to DistinctObituary if not already present
+                # Check if DistinctObituary entry already exists
                 distinct_entry_exists = DistinctObituary.query.filter_by(name=f"{first_name} {last_name}").first()
-                if not distinct_entry_exists:
+                if distinct_entry_exists:
+                    logging.info(f"Duplicate alumni obituary found: {first_name} {last_name}. Skipping DistinctObituary entry.")
+                else:
                     distinct_obituary_entry = DistinctObituary(
                         name=f"{first_name} {last_name}",
                         first_name=first_name,
@@ -589,14 +604,14 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                         city=city,
                         province=province,
                         is_alumni=is_alumni,
-                        family_information=content,
+                        family_information=content_text,
                         funeral_home=funeral_home,  # Save funeral home
                         tags=tags,  # Save tags (initially None)
                         publication_date=publication_date_text,
                     )
                     db.session.add(distinct_obituary_entry)
-
-                db.session.commit()
+                    db.session.commit()
+                    logging.info(f"Distinct Alumni Obituary saved: {first_name} {last_name}") # Moved inside else block
 
         logging.info(f"Obituary saved: {first_name} {last_name} {'✅ (Alumni)' if is_alumni else '❌ (Not Alumni)'}")
         return {"name": f"{first_name} {last_name}", "is_alumni": is_alumni, "url": url, "publication_date": publication_date_text}
@@ -622,7 +637,7 @@ def main(stop_event):
             break  # Exit city loop if event is set
 
         logging.info(f"\nProcessing city {idx}/{len(subdomains)}: {subdomain}")
-        process_city(session, subdomain, stop_event)
+        process_city(session, 'windsorstar', stop_event)
 
     logging.info("\nScraping completed or stopped.")
 
