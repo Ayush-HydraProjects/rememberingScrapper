@@ -157,4 +157,48 @@
     background-color: #6B7280;
     color: white;
 }
+
+#map {
+        height: 600px;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin: 20px 0;
+        border: 2px solid #fff;
+    }
+
+    .leaflet-popup-content-wrapper {
+        border-radius: 8px!important;
+        box-shadow: 0 3px 14px rgba(0,0,0,0.4)!important;
+    }
+
+    .custom-marker {
+        background: #ffffff;
+        border: 2px solid;
+        border-radius: 50%;
+        width: 40px!important;
+        height: 40px!important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+    }
+
+    .custom-marker.new {
+        border-color: #10b981;
+        color: #10b981;
+    }
+
+    .custom-marker.updated {
+        border-color: #6b7280;
+        color: #6b7280;
+    }
+
+    .map-legend {
+        padding: 10px;
+        background: white;
+        border-radius: 5px;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    }
 /* Add more custom styles as needed */

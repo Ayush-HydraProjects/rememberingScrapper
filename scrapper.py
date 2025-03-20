@@ -15,7 +15,7 @@ from urllib3 import Retry
 from urllib.parse import urlparse
 
 from models import Obituary, DistinctObituary, db # Import DistinctObituary model
-
+from geopy.geocoders import Nominatim
 # from app import scraping_active
 
 # Load spaCy NLP Model for Named Entity Recognition (NER)
@@ -573,6 +573,7 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
             return None
 
         city, province = city_province_result
+        latitude, longitude = get_coordinates(city, province)
 
         is_alumni = any(keyword in content_text for keyword in ALUMNI_KEYWORDS)
 
@@ -586,7 +587,9 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                     'province': province, 'is_alumni': is_alumni, 'family_information': content_text,
                     'funeral_home': funeral_home,
                     'tags': tags,  # Update this line
-                    'publication_date': pub_date if publication_date_str else None
+                    'publication_date': pub_date if publication_date_str else None,
+                    'latitude': latitude,
+                    'longitude' : longitude,
                 })
                 db.session.add(obituary_entry)
                 db.session.flush()
@@ -600,7 +603,9 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                         'province': province, 'is_alumni': is_alumni, 'family_information': content_text,
                         'funeral_home': funeral_home,
                         'tags': tags,  # Update this line
-                        'publication_date': pub_date if publication_date_str else None
+                        'publication_date': pub_date if publication_date_str else None,
+                        'latitude': latitude,
+                        'longitude' : longitude,
                     })
                     db.session.add(distinct_obituary_entry)
                     db.session.commit()
@@ -615,6 +620,16 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
         logging.error(f"[{subdomain}] Error processing obituary {url}: {e}")
         return None
 
+geolocator = Nominatim(user_agent="obituary_mapper")
+
+def get_coordinates(city, province):
+    try:
+        location = geolocator.geocode(f"{city}, {province}, Canada", timeout=10)
+        if location:
+            return location.latitude, location.longitude
+    except Exception as e:
+        logging.error(f"Geocoding error for {city}, {province}: {e}")
+    return None, None
 
 def main(stop_event):
     logging.info("Starting obituary scraping process.")

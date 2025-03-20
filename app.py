@@ -101,6 +101,8 @@ def search_obituaries():
             'publication_date': obit.publication_date,
             'is_alumni': obit.is_alumni,
             'tags': obit.tags,
+            'latitude': obit.latitude,
+            'longitude': obit.longitude,
         } for obit in obituaries]
 
         return jsonify(obituary_list)
@@ -141,6 +143,8 @@ def get_obituaries():
             'publication_date': obit.publication_date, # <---- Make sure publication_date is included
             'is_alumni': obit.is_alumni,
             'tags': obit.tags,
+            'latitude': obit.latitude,
+            'longitude': obit.longitude,
         } for obit in obituaries]
         return jsonify(obituary_list)
 

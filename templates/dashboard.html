@@ -11,12 +11,18 @@
           integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
           crossorigin="anonymous" referrerpolicy="no-referrer"/>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Marker Cluster -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
     <script>
         let scrapingActive = {{ scraping_active|tojson }};
         console.log("Initial scrapingActive:", scrapingActive); // Should log true/false
     </script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 </head>
 <body class="bg-gray-100">
 
@@ -101,9 +107,9 @@
             </div>
         </form>
         <div class="mt-6 p-6 rounded-lg shadow-md border">
-            <h2 class="text-lg font-semibold mb-3">📥 Download Data</h2>
+            <h2 class="text-lg font-semibold mb-3 ">📥 Download Data</h2>
             <p class="text-gray-600">Download the Lancers alumni obituaries data as a CSV file.</p>
-            <div class="mt-3">
+            <div class="mt-3 text-center">
                 <a href="{{ url_for('download_csv') }}" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
                     ⬇ Download CSV
                 </a>
@@ -179,8 +185,87 @@
             <!-- Accordion will be generated here by JavaScript -->
             </div>
         </div>
+
     </main>
 </div>
+<div class="container mx-auto p-6">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold mb-4">🌍 Obituary Locations</h2>
+        <div id="map"></div>
+    </div>
+</div>
+<script>
+// Initialize Map
+const map = L.map('map', {
+    zoomSnap: 0.25,
+    fadeAnimation: true
+}).setView([56.130, -106.346], 3); // Center on Canada
 
+// Add Tile Layer
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+
+// Custom Marker Icons
+function createCustomIcon(tag) {
+    return L.divIcon({
+        className: 'custom-marker ' + tag,
+        html: '✝',
+        iconSize: [40, 40],
+        iconAnchor: [20, 40]
+    });
+}
+
+// Marker Cluster
+const markers = L.markerClusterGroup({
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true,
+    chunkedLoading: true
+});
+
+// Fetch data and plot markers
+fetch('/get_obituaries')
+    .then(response => response.json())
+    .then(obituaries => {
+        obituaries.forEach(obit => {
+            if (obit.latitude && obit.longitude) {
+                const marker = L.marker([obit.latitude, obit.longitude], {
+                    icon: createCustomIcon(obit.tags)
+                }).bindPopup(`
+                    <div class="p-2">
+                        <h3 class="font-bold text-lg">${obit.name}</h3>
+                        <p class="text-sm">📍 ${obit.city}, ${obit.province}</p>
+                        <p class="text-sm">📅 ${obit.death_date || 'Unknown date'}</p>
+                        <a href="/obituary/${obit.id}" class="text-blue-500 hover:underline mt-2 block">
+                            View Details →
+                        </a>
+                    </div>
+                `);
+                markers.addLayer(marker);
+            }
+        });
+        map.addLayer(markers);
+
+        // Add Legend
+        const legend = L.control({position: 'bottomright'});
+        legend.onAdd = () => {
+            const div = L.DomUtil.create('div', 'map-legend');
+            div.innerHTML = `
+                <h4 class="font-bold mb-2">Legend</h4>
+                <div class="flex items-center mb-2">
+                    <div class="custom-marker new mr-2"></div>
+                    <span>New Obituaries</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="custom-marker updated mr-2"></div>
+                    <span>Updated Obituaries</span>
+                </div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+    });
+</script>
 </body>
 </html>
