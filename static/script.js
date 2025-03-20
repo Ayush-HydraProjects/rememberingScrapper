@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function () {
     refreshObituaries();
     // updateDashboardSummary(); // If you still use this
     updateScrapingStatusDisplay(); // Initial status update on load
-    setInterval(updateScrapingStatusDisplay, 60000);
+    setInterval(updateScrapingStatusDisplay, 20000);
 
     document.getElementById("filterForm").addEventListener("submit", function (event) {
         event.preventDefault();

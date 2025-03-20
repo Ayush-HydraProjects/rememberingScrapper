@@ -635,6 +635,7 @@ def main(stop_event):
         process_city(session, subdomain, stop_event)
 
     logging.info("Obituary scraping process completed or stopped.")
+    
 
 if __name__ == "__main__":
     pass

@@ -283,22 +283,15 @@ def run_scraper_background(stop_event):
     except Exception as e:
         logging.error(f"Scraper background thread encountered an error: {e}")
     finally:
+        # Automatically stop when done
+        with app.app_context():
+            try:
+                client = app.test_client()
+                client.post('/stop_scrape')
+                logging.info("Automatic stop triggered after completion")
+            except Exception as e:
+                logging.error(f"Error triggering automatic stop: {e}")
         logging.info("Scraper background thread finished.")
-
-
-
-# @app.route('/dashboard_summary') # No changes needed here if summary is based on DistinctObituary now
-# def dashboard_summary():
-#     """Route to get dashboard summary data."""
-#     with app.app_context():
-#         total_alumni = DistinctObituary.query.filter_by(is_alumni=True).count() # Use DistinctObituary
-#         total_obituaries = DistinctObituary.query.count() # Use DistinctObituary
-#         total_cities = len(set(obit.city for obit in DistinctObituary.query.all() if obit.city)) # Use DistinctObituary
-#         return jsonify({  # Return summary data as JSON
-#             'total_alumni': total_alumni,
-#             'total_obituaries': total_obituaries,
-#             'total_cities': total_cities,
-#         })
 
 @app.route('/obituary/<int:obituary_id>')
 def obituary_detail(obituary_id):
