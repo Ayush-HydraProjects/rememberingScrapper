@@ -119,6 +119,29 @@ document.addEventListener('DOMContentLoaded', function () {
         event.preventDefault();
         applyFilters();
     });
+
+    const tagForm = document.getElementById('tagUpdateForm');
+    if (tagForm){
+        tagForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const obituaryId = this.dataset.obituaryId;
+
+            fetch(`/update_tags/${obituaryId}`, {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error updating tag');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        });
+    }
 });
 
 
@@ -333,30 +356,6 @@ function createYearAccordionSection(year, obituaries, isFirstSection) { // NEW f
 
     return yearSection;
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const tagForm = document.getElementById('tagUpdateForm');
-
-    tagForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        const formData = new FormData(this);
-        const obituaryId = this.dataset.obituaryId;
-
-        fetch(`/update_tags/${obituaryId}`, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (response.ok) {
-                window.location.reload();
-            } else {
-                alert('Error updating tag');
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    });
-});
 
 function updateLastScrapeTimeDisplay(timeString) { // NEW function to update last scrape time
     const lastScrapeTimeSpan = document.getElementById("lastScrapeTimeDisplay");

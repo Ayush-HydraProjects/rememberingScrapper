@@ -15,7 +15,9 @@ from flask import send_file
 import threading
 import time
 
-from datetime import datetime
+from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime, timedelta
+import pytz
 
 # Initialize Flask app (rest remains same as before)
 app = Flask(__name__)
@@ -217,6 +219,42 @@ def update_tags(obituary_id):
     db.session.commit()
     return redirect(url_for('obituary_detail', obituary_id=obituary_id))
 
+def is_last_day_of_month():
+    logging.info("Checking is_last_day_of_month...") # Log when function is called
+    tomorrow = datetime.now(pytz.utc) + timedelta(days=1)
+    result = tomorrow.day == 1
+    return result
+
+
+def auto_scrape_job():
+    logging.info("auto_scrape_job function called") # Log at start
+    if is_last_day_of_month():
+        logging.info("⏰ AUTOSCRAPE: is_last_day_of_month returned True") # Log when condition is met
+        logging.info("⏰ AUTOSCRAPE: Last day of month detected, starting automated scrape")
+        try:
+            main(stop_event)  # Use your existing main function
+            logging.info("✅ AUTOSCRAPE: Monthly auto-scrape completed successfully")
+        except Exception as e:
+            logging.error(f"❌ AUTOSCRAPE ERROR inside try block: {str(e)}") # More specific error log
+        finally:
+            stop_event.set()
+    else:
+        logging.info("auto_scrape_job: is_last_day_of_month returned False, skipping scrape.") # Log when not last day
+
+def start_scheduler():
+    scheduler = BackgroundScheduler(timezone=pytz.utc)
+
+    # Run auto_scrape_job every minute for testing
+    scheduler.add_job(
+        auto_scrape_job,  # Use auto_scrape_job again
+        'cron',
+        hour=0,
+        minute=0,
+        id='monthly_scrape'# Keep the same id or change
+    )
+
+    scheduler.start()
+    logging.info("⏲️  Scheduler started - Auto-scrape job scheduled every month for testing.") # Update log message
 
 @app.route('/start_scrape', methods=['POST'])
 def start_scrape():
@@ -352,7 +390,7 @@ def about():
 
 if __name__ == "__main__":
     with app.app_context():
-        # db.drop_all() # Be careful with drop_all in production!
         db.create_all()
+        start_scheduler()  # Start the scheduler
         stop_event.set()
     app.run(debug=True)

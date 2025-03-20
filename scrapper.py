@@ -615,6 +615,7 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
         logging.error(f"[{subdomain}] Error processing obituary {url}: {e}")
         return None
 
+
 def main(stop_event):
     logging.info("Starting obituary scraping process.")
     session = configure_session()
@@ -628,10 +629,9 @@ def main(stop_event):
 
     for idx, subdomain in enumerate(subdomains, 1):
         if stop_event.is_set():
-            logging.info("Scraping stopped by user request (city level).")
+            logging.info("Scraping stopped by system request")
             break
 
-        logging.info(f"\n{'='*50}\nProcessing city {idx}/{len(subdomains)}: {subdomain.upper()}\n{'='*50}")
         process_city(session, subdomain, stop_event)
 
     logging.info("Obituary scraping process completed or stopped.")
