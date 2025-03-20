@@ -10,7 +10,7 @@ class Obituary(db.Model):
     name = db.Column(db.String(255))
     first_name = db.Column(db.String(255))
     last_name = db.Column(db.String(255))
-    publication_date = db.Column(db.Date, nullable=True)
+    # publication_date = db.Column(db.Date, nullable=True)
     birth_date = db.Column(db.String(50), nullable=True)
     death_date = db.Column(db.String(50), nullable=True)
     city = db.Column(db.String(255), nullable=True)
@@ -33,7 +33,7 @@ class DistinctObituary(db.Model): # New model for dist_obituary
     name = db.Column(db.String(255))
     first_name = db.Column(db.String(255))
     last_name = db.Column(db.String(255))
-    publication_date = db.Column(db.String(255), nullable=True)
+    # publication_date = db.Column(db.String(255), nullable=True)
     birth_date = db.Column(db.String(50), nullable=True)
     death_date = db.Column(db.String(50), nullable=True)
     city = db.Column(db.String(255), nullable=True)
@@ -49,3 +49,17 @@ class DistinctObituary(db.Model): # New model for dist_obituary
 
     def __repr__(self):
         return f"<DistinctObituary {self.name} - {self.city}, {self.province}>"
+    
+
+class Metadata(db.Model):
+    __tablename__ = 'metadata'  # Explicitly setting the table name
+
+    id = db.Column(db.Integer, primary_key=True)
+    city = db.Column(db.String(255), unique=True, nullable=False)  # City name
+    last_scrape_date = db.Column(db.String(50), nullable=False)  # Store human-readable date (string format)
+    last_scrape_timestamp = db.Column(db.Integer, default=lambda: int(datetime.now().timestamp()), nullable=False)  # Store epoch timestamp (integer format)
+    last_record_count = db.Column(db.Integer, nullable=False)  # Number of records in the last scrape
+    last_publication_date = db.Column(db.String(50), nullable=True)  # Latest publication date from the last scrape
+
+    def __repr__(self):
+        return f"<ScrapeMetadata {self.city} - Last Scrape Date: {self.last_scrape_date}, Last Scrape Timestamp: {self.last_scrape_timestamp}, Records: {self.last_record_count}>"

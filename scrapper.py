@@ -14,8 +14,11 @@ from urllib3 import Retry
 
 from urllib.parse import urlparse
 
-from models import Obituary, DistinctObituary, db # Import DistinctObituary model
+from sqlalchemy import exc
 
+
+from models import Obituary, DistinctObituary, Metadata, db # Import DistinctObituary model
+from datetime import datetime
 # from app import scraping_active
 
 # Load spaCy NLP Model for Named Entity Recognition (NER)
@@ -131,59 +134,59 @@ CITY_PROVINCE_MAPPING = {
 "thetruronews": ("Truro", "Nova Scotia"),
 "intelligencer": ("Belleville", "Ontario"),
 "brantfordexpositor": ("Brantford", "Ontario"),
-# "recorder": ("Brockville", "Ontario"),
-# "chathamdailynews": ("Chatham", "Ontario"),
-# "clintonnewsrecord": ("Clinton", "Ontario"),
-# "cochranetimespost": ("Cochrane", "Ontario"),
-# "standard-freeholder": ("Cornwall", "Ontario"),
-# "norfolkandtillsonburgnews": ("Delhi", "Ontario"),
-# "elliotlakestandard": ("Elliot Lake", "Ontario"),
-# "midnorthmonitor": ("Sudbury", "Ontario"),
-# "lakeshoreadvance": ("London", "Ontario"),
-# "gananoquereporter": ("Kingston", "Ontario"),
-# "goderichsignalstar": ("Goderich", "Ontario"),
-# "thepost": ("Durham", "Ontario"),
-# "kenoraminerandnews": ("Kenora", "Ontario"),
-# "kincardinenews": ("Port Elgin", "Ontario"),
-# "thewhig": ("Kingston", "Ontario"),
-# "northernnews": ("Kirkland Lake", "Ontario"),
-# "lfpress": ("London", "Ontario"),
-# "lucknowsentinel": ("Lucknow", "Ontario"),
-# "mitchelladvocate": ("Mitchell", "Ontario"),
-# "napaneeguide": ("Kingston", "Ontario"),
-# "nationalpost": ("National Post", "Ontario"),
-# "nugget": ("North Bay", "Ontario"),
-# "ottawa": ("Ottawa", "Ontario"),
-# "ottawacitizen": ("Ottawa", "Ontario"),
-# "ottawasun": ("Ottawa", "Ontario"),
-# "owensoundsuntimes": ("Owen Sound", "Ontario"),
-# "parisstaronline": ("Brantford", "Ontario"),
-# "pembrokeobserver": ("Pembroke", "Ontario"),
-# "countyweeklynews": ("Belleville", "Ontario"),
-# "shorelinebeacon": ("Port Elgin", "Ontario"),
-# "theobserver": ("Sarnia", "Ontario"),
-# "saultstar": ("Sault Ste. Marie", "Ontario"),
-# "seaforthhuronexpositor": ("Huron County", "Ontario"),
-# "simcoereformer": ("Simcoe", "Ontario"),
-# "stthomastimesjournal": ("St. Thomas", "Ontario"),
-# "communitypress": ("Stirling", "Ontario"),
-# "stratfordbeaconherald": ("Stratford", "Ontario"),
-# "strathroyagedispatch": ("London", "Ontario"),
-# "thesudburystar": ("Sudbury", "Ontario"),
-# "timminspress": ("Timmins", "Ontario"),
-# "torontosun": ("Toronto", "Ontario"),
-# "trentonian": ("Trenton", "Ontario"),
-# "wallaceburgcourierpress": ("Wallaceburg", "Ontario"),
-# "thechronicle-online": ("St. Thomas", "Ontario"),
-# "wiartonecho": ("Owen Sound", "Ontario"),
-# "windsorstar": ("Windsor", "Ontario"),
-# "woodstocksentinelreview": ("Woodstock", "Ontario"),
-# "theguardian": ("Charlottetown", "Prince Edward Island"),
-# "thejournalpioneer": ("Summerside", "Prince Edward Island"),
-# "montrealgazette": ("Montreal", "Quebec"),
-# "melfortnipawinjournal": ("Melfort", "Saskatchewan"),
-# "leaderpost": ("Regina", "Saskatchewan"),
-# "thestarphoenix": ("Saskatoon", "Saskatchewan"),
+"recorder": ("Brockville", "Ontario"),
+"chathamdailynews": ("Chatham", "Ontario"),
+"clintonnewsrecord": ("Clinton", "Ontario"),
+"cochranetimespost": ("Cochrane", "Ontario"),
+"standard-freeholder": ("Cornwall", "Ontario"),
+"norfolkandtillsonburgnews": ("Delhi", "Ontario"),
+"elliotlakestandard": ("Elliot Lake", "Ontario"),
+"midnorthmonitor": ("Sudbury", "Ontario"),
+"lakeshoreadvance": ("London", "Ontario"),
+"gananoquereporter": ("Kingston", "Ontario"),
+"goderichsignalstar": ("Goderich", "Ontario"),
+"thepost": ("Durham", "Ontario"),
+"kenoraminerandnews": ("Kenora", "Ontario"),
+"kincardinenews": ("Port Elgin", "Ontario"),
+"thewhig": ("Kingston", "Ontario"),
+"northernnews": ("Kirkland Lake", "Ontario"),
+"lfpress": ("London", "Ontario"),
+"lucknowsentinel": ("Lucknow", "Ontario"),
+"mitchelladvocate": ("Mitchell", "Ontario"),
+"napaneeguide": ("Kingston", "Ontario"),
+"nationalpost": ("National Post", "Ontario"),
+"nugget": ("North Bay", "Ontario"),
+"ottawa": ("Ottawa", "Ontario"),
+"ottawacitizen": ("Ottawa", "Ontario"),
+"ottawasun": ("Ottawa", "Ontario"),
+"owensoundsuntimes": ("Owen Sound", "Ontario"),
+"parisstaronline": ("Brantford", "Ontario"),
+"pembrokeobserver": ("Pembroke", "Ontario"),
+"countyweeklynews": ("Belleville", "Ontario"),
+"shorelinebeacon": ("Port Elgin", "Ontario"),
+"theobserver": ("Sarnia", "Ontario"),
+"saultstar": ("Sault Ste. Marie", "Ontario"),
+"seaforthhuronexpositor": ("Huron County", "Ontario"),
+"simcoereformer": ("Simcoe", "Ontario"),
+"stthomastimesjournal": ("St. Thomas", "Ontario"),
+"communitypress": ("Stirling", "Ontario"),
+"stratfordbeaconherald": ("Stratford", "Ontario"),
+"strathroyagedispatch": ("London", "Ontario"),
+"thesudburystar": ("Sudbury", "Ontario"),
+"timminspress": ("Timmins", "Ontario"),
+"torontosun": ("Toronto", "Ontario"),
+"trentonian": ("Trenton", "Ontario"),
+"wallaceburgcourierpress": ("Wallaceburg", "Ontario"),
+"thechronicle-online": ("St. Thomas", "Ontario"),
+"wiartonecho": ("Owen Sound", "Ontario"),
+"windsorstar": ("Windsor", "Ontario"),
+"woodstocksentinelreview": ("Woodstock", "Ontario"),
+"theguardian": ("Charlottetown", "Prince Edward Island"),
+"thejournalpioneer": ("Summerside", "Prince Edward Island"),
+"montrealgazette": ("Montreal", "Quebec"),
+"melfortnipawinjournal": ("Melfort", "Saskatchewan"),
+"leaderpost": ("Regina", "Saskatchewan"),
+"thestarphoenix": ("Saskatoon", "Saskatchewan"),
 }
 
 def extract_city_and_province(url):
@@ -221,7 +224,7 @@ def get_city_subdomains(session):
         logging.error(f"Error fetching city subdomains: {e}")
         return []
 
-def process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event): # <- Removed state params
+def process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event, new_entries_processed, new_entries_count): # <- Removed state params
     """Fetch obituary pages for a city"""
     time.sleep(0.5)
     base_url = f"https://{subdomain}.{BASE_DOMAIN}"
@@ -229,8 +232,12 @@ def process_search_pagination(session, subdomain, visited_search_pages, visited_
 
     page = 1
     max_pages = 200
-
+            
     while page <= max_pages:
+        
+        if new_entries_processed >= new_entries_count:
+            logging.info("All new entries have been processed. Skipping remaining pages.")
+            return  # Exit pagination loop
 
         if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
             logging.info("Scraping stopped by user request (pagination level).")
@@ -269,43 +276,202 @@ def process_search_pagination(session, subdomain, visited_search_pages, visited_
             logging.error(f"Error on page {page}: {str(e)[:100]}...")
             break
 
-def process_city(session, subdomain, stop_event): # <- Removed state params
+
+new_records_count = 0  # To track new records
+new_entries_processed = 0 # To track the actual new entries that are processed
+visited_obituaries = set()
+total_alumni = 0
+
+def process_city(session, subdomain, stop_event):
     """Process all obituary pages in a city"""
 
     logging.info(f"\nProcessing city: {subdomain.upper()}\n" + "=" * 50)
+    global total_alumni, new_records_count, new_entries_processed, visited_obituaries
 
-    total_alumni = 0
+    # total_alumni = 0
     visited_search_pages = set()
-    visited_obituaries = set()
+    # visited_obituaries = set()
+    latest_publication_date = None
+    latest_publication_date_str = None
+    # new_records_count = 0  # To track new records
+    # new_entries_processed = 0 # To track the actual new entries that are processed
+   
+
+    base_url = f"https://{subdomain}.{BASE_DOMAIN}"
+    search_url = f"{base_url}/obituaries/all-categories/search?search_type=advanced&ap_search_keyword={SEARCH_KEYWORD}&sort_by=date&order=desc"
+
+    city_scraped_successfully = False  # Flag to track if the city was fully scraped
+
+    try:
+        from app import app
+        with app.app_context():
+            db.create_all() 
+            db_data = db.session.execute(db.text("SELECT * FROM metadata WHERE city = :city"), {"city": subdomain}).fetchone()
+            logging.info(f"DDDDDDDBBBBBBBBBB DAAAAAATTAA  {db_data}")
+            if db_data:
+                last_record_count = db_data[4]  # Assuming the correct column index for last_record_count
+                last_publication_date_str = db_data[5]  # Assuming the correct column index for last_publication_date
+                last_publication_date = datetime.strptime(last_publication_date_str, "%B %d, %Y") if last_publication_date_str else None
+            else:
+                logging.info(f"No existing record found for city {subdomain}. Setting last_record_count to 0.")
+                last_record_count = 0
+                last_publication_date = None
+
+            # try:
+            #     db_data = db.session.execute(db.text("SELECT * FROM Metadata WHERE city = :city"), {"city": subdomain}).fetchone()
+            #     if db_data:
+            #         last_record_count = db_data[4]  # Assuming the correct column index for last_record_count
+            #         last_publication_date_str = db_data[5]  # Assuming the correct column index for last_publication_date
+            #         last_publication_date = datetime.strptime(last_publication_date_str, "%B %d, %Y") if last_publication_date_str else None
+            #     else:
+            #         logging.info(f"No existing record found for city {subdomain}. Setting last_record_count to 0.")
+            #         last_record_count = 0
+            #         last_publication_date = None
+            # except exc.NoSuchTableError as e: #or exc.UndefinedTable as e:  # Capture the specific error
+            #     logging.warning(f"Table 'Metadata' does not exist: {e}.  Continuing with scraping assuming no previous data.")
+            #     last_record_count = 0
+            #     last_publication_date = None
+
+            response = session.get(search_url)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            number_of_stories_element = soup.find("p", class_="notices-counter")
+            if number_of_stories_element:
+                number_text = number_of_stories_element.get_text(strip=True)
+                number_of_stories = int(''.join(filter(str.isdigit, number_text)))
+            else:
+                number_of_stories = 0
+
+            logging.info(f"Total number of stories found: {number_of_stories}")
+
+            # Skip processing if no new records based on total count and date.
+            if number_of_stories <= last_record_count and last_publication_date:
+                logging.info(f"No new records found for city {subdomain} based on total count. Checking publication date.")
+
+                # Check if the latest publication date on the site is older or the same as the last scraped date.
+                # latest_date_element = soup.find("div", class_="obituary-date") # Adapt selector to your HTML
+                # if latest_date_element:
+                #     latest_date_str_on_site = latest_date_element.get_text(strip=True)
+                # try:
+                    # latest_date_on_site = datetime.strptime(latest_date_str_on_site, "%B %d, %Y")  # Adjust format if necessary
+                    # if latest_date_on_site <= last_publication_date:
+                logging.info(f"No new records found for {subdomain}. Skipping city.")
+                return None  # Skip processing
+                # except ValueError:
+                #     logging.warning(f"Could not parse date: {latest_date_str_on_site}")
+                # else:
+                #     logging.warning("Could not find latest date on the site.  Skipping date check.")
 
 
-    for page_urls in process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event): # <- Removed state params
+            new_entries_count = number_of_stories - last_record_count
+            logging.info(f"New entries to scrape: {new_entries_count}")
 
-        if stop_event.is_set():  # Check stop_event - CHANGED from scraping_active check
-            logging.info("Scraping stopped by user request (city level - start of city processing).")
-            break
-
-        for url in page_urls:
-            if stop_event.is_set():  # Check stop_event before processing each URL  <- CHANGED
-                logging.info("Scraping stopped by user request (city level - before processing url).")
-                break
-
-            if url in visited_obituaries:
-                continue
-
-
-            #  Now correctly passing db.session
-            result = process_obituary(session, db.session, url, visited_obituaries, stop_event)
-            if result and result["is_alumni"]:
-                total_alumni += 1
-
-            time.sleep(random.uniform(0.7, 1.3))
+        for page_urls in process_search_pagination(session, subdomain, visited_search_pages, visited_obituaries, stop_event, new_entries_processed, new_entries_count):
+            logging.info(f"New Entries Processed: {new_entries_processed}, new_entries_count : {new_entries_count}")
+            new_entries_processed = new_entries_processed
+            if new_entries_processed >= new_entries_count:
+                 break  # Exit outer loop if processed all
 
             if stop_event.is_set():
-                logging.info("Scraping stopped by user request (city level - after processing urls).")
-                break
+                logging.info("Scraping stopped by user request (city level - start of city processing).")
+                return None  # Exit without updating metadata
+
+            for url in page_urls:
+                if stop_event.is_set():
+                    logging.info("Scraping stopped by user request (city level - before processing URL).")
+                    return None  # Exit without updating metadata
+
+                if url in visited_obituaries:
+                    continue
+
+                result = process_obituary(session, db.session, url, visited_obituaries, stop_event)
+                # logging.info(f" RESUUUUUUUUUULT {result}")
+
+                if result and result["is_alumni"]:
+                    total_alumni += 1
+
+                pub_date_str = result.get("publication_date")
+                pub_date_str = pub_date_str.split("in")[0].strip()
+                if pub_date_str:
+                    try:
+                        logging.info(f" DDDATTTTTTTTE sttttttttttrrrrrrr {pub_date_str}.")
+                        pub_date = datetime.strptime(pub_date_str, "%B %d, %Y")
+                        logging.info(f"PUUUUUBBBBBBB DDDATTTTTTTTE {pub_date}.")
+                        # Check if the publication date is greater than the last scraped date.
+                        if last_publication_date is None or pub_date > last_publication_date:
+                            new_records_count += 1 #increment the count for new records
+
+                            new_entries_processed +=1  # Increment counter when actually processing a new entry
+
+                            if latest_publication_date is None or pub_date > latest_publication_date:
+                                latest_publication_date = pub_date
+                                latest_publication_date_str = pub_date_str
+
+                            # Check if we've processed all new entries, if so, exit loop
+                            if new_entries_processed >= new_entries_count:
+                                logging.info(f"Processed all new entries for {subdomain}.")
+                                break # Exit inner loop
+
+                    except ValueError:
+                        logging.warning(f"Invalid date format: {pub_date_str}")
+                else:
+                    logging.warning(f"Publication date not found for URL: {url}")
+
+                time.sleep(random.uniform(0.7, 1.3))
+
+                if stop_event.is_set():
+                    logging.info("Scraping stopped by user request (city level - after processing URL).")
+                    return None  # Exit without updating metadata
+                
+
+        city_scraped_successfully = True  # Set flag to True only if scraping completes successfully
+
+    except (ValueError, TypeError) as e:
+        logging.error(f"Error processing {subdomain}: {e}")
+        return None  # Exit without updating metadata
+
+    finally:
+        new_records_count = 0  # To track new records
+        new_entries_processed = 0
+        if city_scraped_successfully:  # Update metadata only if full scraping was successful
+            try:
+                from app import app
+                with app.app_context():
+                    if latest_publication_date_str:
+                        latest_publication_date = datetime.strptime(latest_publication_date_str, "%B %d, %Y").date()
+                        latest_publication_date_str = latest_publication_date.strftime("%B %d, %Y") if latest_publication_date else None
+                    else:
+                        latest_publication_date = None
+
+                    last_scrape_epoch = int(datetime.now().timestamp())
+                    last_scrape_date = datetime.now().strftime("%B %d, %Y")
+
+                    metadata_entry = Metadata.query.filter_by(city=subdomain).first()
+
+                    if metadata_entry:
+                        metadata_entry.last_scrape_date = last_scrape_date
+                        metadata_entry.last_scrape_timestamp = last_scrape_epoch
+                        metadata_entry.last_record_count = number_of_stories # Use total stories, not just the 'new' ones
+                        metadata_entry.last_publication_date = latest_publication_date_str
+                    else:
+                        new_metadata = Metadata(
+                            city=subdomain,
+                            last_scrape_date=last_scrape_date,
+                            last_scrape_timestamp=last_scrape_epoch,
+                            last_record_count=number_of_stories,
+                            last_publication_date=latest_publication_date_str
+                        )
+                        db.session.add(new_metadata)
+
+                    db.session.commit()
+                    logging.info(f"Updated ScrapeMetadata for {subdomain}: {new_records_count} new records, last publication date: {latest_publication_date_str}")
+
+            except (ValueError, TypeError) as e:
+                logging.error(f"Error updating metadata for {subdomain}: {e}")
 
     logging.info(f"City {subdomain} completed. Alumni found: {total_alumni}")
+
 
 
 
@@ -344,50 +510,6 @@ def parse_date(date_str):
     except (ValueError, TypeError):
         return None
 
-# def extract_death_and_birth_dates(text):
-#     """
-#     Extracts death and birth dates from the given text using spaCy NLP and relative keywords.
-#     Returns:
-#         A tuple containing the extracted death date and birth date (or None if not found).
-#     """
-#     death_date = None
-#     birth_date = None
-#
-#     doc = nlp(text)
-#
-#     # Find the first death indicator to cut down on processing
-#     death_index = -1  # If no indicator, still run full search
-#     for i, sent in enumerate(doc.sents):
-#         death_keywords = ["passing", "passed away", "death", "died", "rested", "passed", "at the age of"]
-#         if any(keyword in sent.text.lower() for keyword in death_keywords):
-#             death_index = i
-#             break
-#
-#     for i, sent in enumerate(doc.sents):  # Process each sentence separately
-#         death_keywords = ["passing", "passed away", "death", "died", "rested", "passed", "at the age of"]
-#         birth_keywords = ["born", "birth", "born in"]
-#
-#         # Check for death dates and limit to the first event with the code.
-#         if any(keyword in sent.text.lower() for keyword in death_keywords) and i == death_index:
-#             for ent in sent.ents:
-#                 if ent.label_ == "DATE":
-#                     death_date = ent.text
-#                     break  # Take the first date found in the sentence
-#
-#         # Check for birth dates at all sections.
-#         if any(keyword in sent.text.lower() for keyword in birth_keywords):
-#             for ent in sent.ents:
-#                 if ent.label_ == "DATE":
-#                     birth_date = ent.text
-#                     break  # Take the first date found in the sentence
-#
-#     # Parse dates found in the text and format them
-#     if birth_date:
-#         birth_date = parse_date(birth_date)
-#     if death_date:
-#         death_date = parse_date(death_date)
-#
-#     return death_date, birth_date
 
 def extract_year_from_date(date_string):
     """
@@ -477,6 +599,7 @@ def get_publication_date_from_soup(soup):
                     break # Stop after finding the first matching prefix
             if extracted_date:
                 publication_date = extracted_date
+                # logging.info(f"Publication date : '{publication_date}'")
             else:
                 logging.warning(f"Publication date prefix not found in: '{text_content}'")
                 publication_date = text_content # Or publication_date = None, or handle as needed
@@ -506,6 +629,14 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
         # Extract name components
         obit_name_tag = soup.find("h1", class_="obit-name")
         last_name_tag = soup.find("span", class_="obit-lastname-upper")
+
+        if not obit_name_tag: # Check if obit_name_tag is found
+            logging.warning(f"Could not find obit-name tag for {url}")
+            return None # Exit early if critical tag is missing
+
+        if not last_name_tag: # Check if last_name_tag is found
+            logging.warning(f"Could not find obit-lastname-upper tag for {url}")
+            return None # Exit early if critical tag is missing
 
         first_name = extract_text(obit_name_tag).replace(extract_text(last_name_tag), "").strip() if obit_name_tag and last_name_tag else None
         last_name = extract_text(last_name_tag).capitalize() if last_name_tag else None
@@ -542,13 +673,14 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
 
         # ********************  ADD THIS SECTION  ********************
         # Extract publication date
-        publication_date_tag = soup.find("div", class_="details-published")
-        publication_date = None
-        if publication_date_tag:
-            # Extract the text and remove "Published on"
-            publication_date_text = publication_date_tag.get_text(strip=True).replace("Published on", "").strip()
-            publication_date = publication_date_text
-        logging.info(f"Pulblished on : {publication_date}")
+        # publication_date_tag = soup.find("div", class_="details-published")
+        # publication_date = None
+        # if publication_date_tag:
+        #     # Extract the text and remove "Published on"
+        #     # publication_date_text = publication_date_tag.get_text(strip=True).replace("Published on", "").strip()
+        #     publication_date = publication_date_text
+        logging.info(f"Pulblished on : {publication_date_text}")
+
         # ********************  END ADDED SECTION  ********************
 
         # Check for alumni status
@@ -558,25 +690,47 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
             from app import app
             with app.app_context():
                 # Save to Obituary table
-                obituary_entry = Obituary(
-                    name=f"{first_name} {last_name}",
-                    first_name=first_name,
-                    last_name=last_name,
-                    birth_date=birth_date,
-                    death_date=death_date,
-                    donation_information=donation_info,
-                    obituary_url=url,
-                    city=city,
-                    province=province,
-                    is_alumni=is_alumni,
-                    family_information=content,
-                    funeral_home=funeral_home,  # Save funeral home
-                    publication_date=publication_date,
-                    tags=tags,  # Save tags (initially None)
-                    publication_date=publication_date_text,
-                )
-                db.session.add(obituary_entry)
-                db.session.flush()
+                # obituary_entry = Obituary(
+                #     name=f"{first_name} {last_name}",
+                #     first_name=first_name,
+                #     last_name=last_name,
+                #     birth_date=birth_date,
+                #     death_date=death_date,
+                #     donation_information=donation_info,
+                #     obituary_url=url,
+                #     city=city,
+                #     province=province,
+                #     is_alumni=is_alumni,
+                #     family_information=content,
+                #     funeral_home=funeral_home,  # Save funeral home
+                #     tags=tags,  # Save tags (initially None)
+                #     publication_date=publication_date_text,
+                # )
+                # db.session.add(obituary_entry)
+                # db.session.flush()
+                existing_obituary = Obituary.query.filter_by(obituary_url=url).first()
+
+                if not existing_obituary:  # Only insert if it doesn't exist
+                    obituary_entry = Obituary(
+                        name=f"{first_name} {last_name}",
+                        first_name=first_name,
+                        last_name=last_name,
+                        birth_date=birth_date,
+                        death_date=death_date,
+                        donation_information=donation_info,
+                        obituary_url=url,
+                        city=city,
+                        province=province,
+                        is_alumni=is_alumni,
+                        family_information=content,
+                        funeral_home=funeral_home,
+                        tags=tags,  # Save tags (initially None)
+                        publication_date=publication_date_text,
+                    )
+                    db.session.add(obituary_entry)
+                    db.session.flush()
+                else:
+                    logging.info(f"Skipping duplicate obituary: {url}")
 
                 # Save to DistinctObituary if not already present
                 distinct_entry_exists = DistinctObituary.query.filter_by(name=f"{first_name} {last_name}").first()
@@ -594,7 +748,6 @@ def process_obituary(session, db_session, url, visited_obituaries, stop_event):
                         is_alumni=is_alumni,
                         family_information=content,
                         funeral_home=funeral_home,  # Save funeral home
-                        publication_date = publication_date,
                         tags=tags,  # Save tags (initially None)
                         publication_date=publication_date_text,
                     )
