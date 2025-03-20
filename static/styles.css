@@ -168,7 +168,7 @@
 
     .leaflet-popup-content-wrapper {
         border-radius: 8px!important;
-        box-shadow: 0 3px 14px rgba(0,0,0,0.4)!important;
+        box-shadow: 0 0 0 0 !important;
     }
 
     .custom-marker {
@@ -201,4 +201,51 @@
         border-radius: 5px;
         box-shadow: 0 1px 5px rgba(0,0,0,0.4);
     }
+
+    .custom-cluster-marker div {
+    background-color: rgba(52, 152, 219, 0.8); /* Blue background */
+    color: white;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    border: 2px solid white;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    font-size: 14px; /* Adjust font size as needed */
+}
+
+.custom-cluster-marker-legend {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: rgba(52, 152, 219, 0.8);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 10px;
+    font-weight: bold;
+    border: 1px solid white;
+    box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.custom-cluster-marker-legend span {
+    margin: auto; /* Center text */
+}
+
+
+/* Add this CSS to make the popup scrollable */
+.leaflet-popup-content-wrapper {
+    max-height: 300px; /* Adjust as needed */
+    overflow-y: auto; /* Enable vertical scrolling */
+    overflow-x: hidden; /* Prevent horizontal scrollbar */
+}
+
+.obituary-list {
+    padding-right: 10px; /* Add some padding for scrollbar visibility if needed */
+}
 /* Add more custom styles as needed */

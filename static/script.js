@@ -195,7 +195,6 @@ function refreshObituaries() { // Modified refreshObituaries to use year accordi
     fetch('/get_obituaries')
         .then(response => response.json())
         .then(data => {
-            console.log('First obituary data:', data[0]); // Check for lat/long
             document.getElementById('loading-spinner').classList.add('hidden');
 
             if (data.length === 0) {

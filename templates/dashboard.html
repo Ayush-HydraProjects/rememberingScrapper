@@ -195,77 +195,95 @@
     </div>
 </div>
 <script>
-// Initialize Map
 const map = L.map('map', {
-    zoomSnap: 0.25,
-    fadeAnimation: true
-}).setView([56.130, -106.346], 3); // Center on Canada
+    zoomSnap: 1,
+    fadeAnimation: true,
+    maxZoom: 18,
+    minZoom: 2
+}).setView([56.130, -106.346], 5);
 
-// Add Tile Layer
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 
-// Custom Marker Icons
-function createCustomIcon(tag) {
+function createClusterIcon(count) {
     return L.divIcon({
-        className: 'custom-marker ' + tag,
-        html: '✝',
+        className: 'custom-cluster-marker',
+        html: `<div><span>${count}</span></div>`,
         iconSize: [40, 40],
-        iconAnchor: [20, 40]
+        iconAnchor: [20, 20],
+        popupAnchor: [0, -20]
     });
 }
 
-// Marker Cluster
-const markers = L.markerClusterGroup({
-    spiderfyOnMaxZoom: true,
-    showCoverageOnHover: false,
-    zoomToBoundsOnClick: true,
-    chunkedLoading: true
-});
-
-// Fetch data and plot markers
 fetch('/get_obituaries')
     .then(response => response.json())
     .then(obituaries => {
+        const locationGroups = {};
+
         obituaries.forEach(obit => {
             if (obit.latitude && obit.longitude) {
-                const marker = L.marker([obit.latitude, obit.longitude], {
-                    icon: createCustomIcon(obit.tags)
-                }).bindPopup(`
-                    <div class="p-2">
-                        <h3 class="font-bold text-lg">${obit.name}</h3>
-                        <p class="text-sm">📍 ${obit.city}, ${obit.province}</p>
-                        <p class="text-sm">📅 ${obit.death_date || 'Unknown date'}</p>
-                        <a href="/obituary/${obit.id}" class="text-blue-500 hover:underline mt-2 block">
-                            View Details →
-                        </a>
-                    </div>
-                `);
-                markers.addLayer(marker);
+                const locationKey = `${obit.latitude},${obit.longitude}`;
+                if (!locationGroups[locationKey]) {
+                    locationGroups[locationKey] = [];
+                }
+                locationGroups[locationKey].push(obit);
             }
         });
-        map.addLayer(markers);
 
-        // Add Legend
-        const legend = L.control({position: 'bottomright'});
-        legend.onAdd = () => {
-            const div = L.DomUtil.create('div', 'map-legend');
-            div.innerHTML = `
-                <h4 class="font-bold mb-2">Legend</h4>
-                <div class="flex items-center mb-2">
-                    <div class="custom-marker new mr-2"></div>
-                    <span>New Obituaries</span>
-                </div>
-                <div class="flex items-center">
-                    <div class="custom-marker updated mr-2"></div>
-                    <span>Updated Obituaries</span>
-                </div>
-            `;
-            return div;
-        };
-        legend.addTo(map);
+        for (const locationKey in locationGroups) {
+            if (locationGroups.hasOwnProperty(locationKey)) {
+                const group = locationGroups[locationKey];
+                const [latitude, longitude] = locationKey.split(',').map(Number);
+                const count = group.length;
+
+                let popupContent = `
+                    <div class="leaflet-popup-content-wrapper">
+                        <div class="p-2 max-w-xs">
+                            <h3 class="font-bold text-lg text-center text-gray-900 mb-2">Obituaries (${count})</h3>
+                            <ul class="obituary-list">
+                            ${group.map(obit => `
+                                <li class="mb-4 border-b pb-2 last:border-b-0 last:mb-0">
+                                    <h4 class="font-semibold text-md text-gray-800">${obit.name}</h4>
+                                    <p class="text-sm text-gray-700">📍 <strong>${obit.city}, ${obit.province}</strong></p>
+                                    <p class="text-sm text-gray-600">📅 ${obit.death_date || 'Unknown date'}</p>
+                                    <a href="/obituary/${obit.id}" class="text-blue-600 font-semibold hover:underline mt-1 block">
+                                        View Details →
+                                    </a>
+                                </li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+
+                const marker = L.marker([latitude, longitude], {
+                    icon: createClusterIcon(count)
+                }).bindPopup(popupContent);
+
+                marker.addTo(map);
+            }
+        }
     });
+
+
+const legend = L.control({ position: 'bottomright' });
+
+legend.onAdd = function () {
+    const div = L.DomUtil.create('div', 'map-legend p-3 rounded-lg shadow-lg bg-white border border-gray-300');
+    div.innerHTML = `
+        <h4 class="font-bold text-md text-center mb-2">🗺️ Map Legend</h4>
+        <div class="flex items-center">
+            <div class="custom-cluster-marker-legend mr-2"><span>99+</span></div>
+            <span class="text-xs">Obituary Locations (Count)</span>
+        </div>
+    `;
+    return div;
+};
+
+legend.addTo(map);
+
+
 </script>
+
 </body>
 </html>
