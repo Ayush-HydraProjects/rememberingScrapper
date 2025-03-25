@@ -19,6 +19,11 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
 import pytz
 
+import certifi
+import requests
+
+requests.get('https://nominatim.openstreetmap.org', verify=certifi.where())
+
 # Initialize Flask app (rest remains same as before)
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL',
